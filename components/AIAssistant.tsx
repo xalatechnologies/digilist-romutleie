@@ -1,6 +1,6 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, Bot, User, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Card, Text, Button, Input, Stack } from './XalaUI';
 import { chatWithAssistantStream } from '../services/geminiService';
 import { ChatMessage, MessageRole } from '../types';
@@ -19,10 +19,11 @@ export const AIAssistant: React.FC = () => {
     }
   }, [messages]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;
 
     const userMsg: ChatMessage = { role: MessageRole.USER, content: input, timestamp: new Date() };
+    const userInput = input.trim();
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
@@ -33,7 +34,7 @@ export const AIAssistant: React.FC = () => {
     setMessages(prev => [...prev, { role: MessageRole.ASSISTANT, content: "", timestamp: new Date() }]);
 
     try {
-      await chatWithAssistantStream(input, (chunk) => {
+      await chatWithAssistantStream(userInput, (chunk) => {
         assistantContent += chunk;
         setMessages(prev => {
           const newMsgs = [...prev];
@@ -44,13 +45,25 @@ export const AIAssistant: React.FC = () => {
           return newMsgs;
         });
       });
-    } catch (error) {
-      console.error(error);
-      setMessages(prev => [...prev, { role: MessageRole.ASSISTANT, content: "An error occurred connecting to neural network.", timestamp: new Date() }]);
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      const errorMessage = error.message?.includes('API_KEY') 
+        ? "AI Assistant is not configured. Please set VITE_GEMINI_API_KEY in your .env.local file."
+        : "An error occurred connecting to the AI service. Please try again.";
+      
+      setMessages(prev => {
+        const newMsgs = [...prev];
+        newMsgs[newMsgs.length - 1] = { 
+          role: MessageRole.ASSISTANT, 
+          content: errorMessage, 
+          timestamp: new Date() 
+        };
+        return newMsgs;
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, isLoading]);
 
   return (
     <Card className="flex flex-col h-[600px] border-primary/20 shadow-xl overflow-hidden bg-card">
@@ -91,10 +104,17 @@ export const AIAssistant: React.FC = () => {
             placeholder="Query operational status or room data..." 
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && input.trim() && !isLoading) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
             className="flex-1 rounded-xl h-12 shadow-sm border-slate-200"
+            disabled={isLoading}
           />
           <Button size="icon" type="submit" disabled={isLoading || !input.trim()} className="h-12 w-12 rounded-xl shadow-lg">
-            <Send size={20} />
+            {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
           </Button>
         </form>
       </div>

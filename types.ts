@@ -20,6 +20,13 @@ export enum RoomStatus {
   OUT_OF_SERVICE = 'OUT_OF_SERVICE'
 }
 
+export enum RoomOccupancy {
+  FREE = 'FREE',
+  RESERVED = 'RESERVED',
+  OCCUPIED = 'OCCUPIED',
+  DEPARTING = 'DEPARTING'
+}
+
 export interface IRoom {
   id: string;
   number: string;
@@ -28,6 +35,19 @@ export interface IRoom {
   floor: number;
   pricePerNight: number;
   status: RoomStatus;
+  outOfServiceReason?: string; // New field
+  outOfServiceNote?: string;
+  expectedReturnDate?: string;
+  linkedTicketId?: string;
+}
+
+// Helper interface for frontend display
+export interface IRoomSummary extends IRoom {
+  occupancy: RoomOccupancy;
+  nextEvent: string;
+  hasHousekeeping: boolean;
+  hasMaintenance: boolean;
+  currentBooking?: IBooking;
 }
 
 export enum BookingStatus {

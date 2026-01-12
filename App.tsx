@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { ApplicationShell, Button, Text, Card } from './components/XalaUI';
+import { Dashboard } from './components/Dashboard';
 import { 
   RoomsView, 
   BookingView, 
@@ -22,7 +23,14 @@ import {
   Moon,
   Activity,
   ClipboardList,
-  History
+  History,
+  Menu,
+  X,
+  ChevronRight,
+  Sparkles,
+  User,
+  Shield,
+  ChevronLeft
 } from 'lucide-react';
 import { UserRole, BookingStatus } from './types';
 import { store } from './services/storeService';
@@ -30,6 +38,9 @@ import { store } from './services/storeService';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [userRole, setUserRole] = useState<UserRole>(UserRole.ADMIN);
+  const [openBookingForm, setOpenBookingForm] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Derived stats for the Control Center
   const stats = useMemo(() => {
@@ -45,24 +56,71 @@ const App: React.FC = () => {
     };
   }, [activeTab, userRole]); // Re-calculate when view or role changes
 
-  const menuItems = [
-    { name: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF] },
-    { name: 'Rooms', icon: <Bed size={20} />, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF, UserRole.HOUSEKEEPING] },
-    { name: 'Bookings', icon: <PieChart size={20} />, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF] },
-    { name: 'Housekeeping', icon: <ClipboardList size={20} />, roles: [UserRole.ADMIN, UserRole.HOUSEKEEPING] },
-    { name: 'Kitchen', icon: <Utensils size={20} />, roles: [UserRole.ADMIN, UserRole.KITCHEN] },
-    { name: 'Billing', icon: <CreditCard size={20} />, roles: [UserRole.ADMIN, UserRole.FINANCE] },
-    { name: 'Maintenance', icon: <Wrench size={20} />, roles: [UserRole.ADMIN, UserRole.HOUSEKEEPING] },
-    { name: 'Audit Logs', icon: <History size={20} />, roles: [UserRole.ADMIN] },
-    { name: 'Reports', icon: <Activity size={20} />, roles: [UserRole.ADMIN, UserRole.FINANCE] },
+  const menuGroups = [
+    {
+      label: 'Overview',
+      items: [
+        { name: 'Dashboard', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF], badge: null },
+      ]
+    },
+    {
+      label: 'Operations',
+      items: [
+        { name: 'Rooms', icon: Bed, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF, UserRole.HOUSEKEEPING], badge: null },
+        { name: 'Bookings', icon: PieChart, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF], badge: null },
+        { name: 'Housekeeping', icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.HOUSEKEEPING], badge: stats.housekeepingPending > 0 ? stats.housekeepingPending : null },
+        { name: 'Kitchen', icon: Utensils, roles: [UserRole.ADMIN, UserRole.KITCHEN], badge: stats.kitchenPending > 0 ? stats.kitchenPending : null },
+        { name: 'Maintenance', icon: Wrench, roles: [UserRole.ADMIN, UserRole.HOUSEKEEPING], badge: stats.ticketsOpen > 0 ? stats.ticketsOpen : null },
+      ]
+    },
+    {
+      label: 'Finance & Reports',
+      items: [
+        { name: 'Billing', icon: CreditCard, roles: [UserRole.ADMIN, UserRole.FINANCE], badge: null },
+        { name: 'Reports', icon: Activity, roles: [UserRole.ADMIN, UserRole.FINANCE], badge: null },
+      ]
+    },
+    {
+      label: 'System',
+      items: [
+        { name: 'Audit Logs', icon: History, roles: [UserRole.ADMIN], badge: null },
+      ]
+    }
   ];
 
-  const filteredMenu = menuItems.filter(item => item.roles.includes(userRole));
+  // Flat menu items for backward compatibility
+  const menuItems = menuGroups.flatMap(group => group.items.map(item => ({
+    ...item,
+    icon: <item.icon size={20} />
+  })));
+
+  const filteredMenu = useMemo(() => 
+    menuItems.filter(item => item.roles.includes(userRole)), 
+    [userRole]
+  );
+
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    // Reset form open state when switching tabs
+    if (tab !== 'Bookings') {
+      setOpenBookingForm(false);
+    }
+  }, []);
+
+  const handleNewReservationClick = useCallback(() => {
+    setActiveTab('Bookings');
+    setOpenBookingForm(true);
+  }, []);
+
+  const handleNightAudit = useCallback(() => {
+    const audit = store.runNightAudit('Manual-Admin');
+    alert(`System wide night audit completed. Target Date: ${audit.date}`);
+  }, []);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'Rooms': return <RoomsView />;
-      case 'Bookings': return <BookingView />;
+      case 'Bookings': return <BookingView autoOpenForm={openBookingForm} onFormOpened={() => setOpenBookingForm(false)} />;
       case 'Housekeeping': return <HousekeepingView />;
       case 'Kitchen': return <KitchenView />;
       case 'Billing': return <BillingView />;
@@ -70,26 +128,7 @@ const App: React.FC = () => {
       case 'Audit Logs': return <AuditLogView />;
       case 'Reports': return <ReportingView />;
       default: return (
-        <div className="space-y-10">
-           <div className="flex justify-between items-center">
-             <Text size="2xl" weight="bold" className="tracking-tight">Control Center</Text>
-             <Button variant="outline" size="md" className="font-bold tracking-tight border-2" onClick={() => {
-               const audit = store.runNightAudit('Manual-Admin');
-               alert(`System wide night audit completed. Target Date: ${audit.date}`);
-             }}>
-               <Moon className="mr-3 h-5 w-5" /> Execute Night Audit
-             </Button>
-           </div>
-           
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-             <DashboardStat label="Occupancy Rate" value={`${stats.occupancy}%`} sub="Real-time check-ins" trend="stable" />
-             <DashboardStat label="Kitchen Queue" value={stats.kitchenPending} sub="Orders preparing" trend="active" />
-             <DashboardStat label="Sanitation" value={stats.housekeepingPending} sub="Units requiring attention" trend="warning" />
-             <DashboardStat label="System Faults" value={stats.ticketsOpen} sub="Active tickets" trend="destructive" />
-           </div>
-
-           <BookingView />
-        </div>
+        <Dashboard userRole={userRole} onNavigate={setActiveTab} />
       );
     }
   };
@@ -102,30 +141,247 @@ const App: React.FC = () => {
       onRoleChange={(role) => setUserRole(role as UserRole)}
       availableRoles={Object.values(UserRole)}
       onLogoClick={() => setActiveTab('Dashboard')}
+      sidebarOpen={sidebarOpen}
+      onSidebarToggle={() => setSidebarOpen(!sidebarOpen)}
     >
-      <div className="flex flex-col md:flex-row gap-12">
-        <aside className="hidden md:block w-64 shrink-0 space-y-2">
-          <Text size="sm" weight="bold" muted className="px-4 py-3 uppercase tracking-widest opacity-60">Operations</Text>
-          {filteredMenu.map(item => (
-            <button
-              key={item.name}
-              onClick={() => setActiveTab(item.name)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-base font-bold transition-all ${activeTab === item.name ? 'bg-primary text-primary-foreground shadow-lg scale-[1.02]' : 'hover:bg-accent text-muted-foreground hover:text-foreground'}`}
+      <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
+        {/* Mobile Menu Button */}
+        <div className="lg:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 rounded-token-full shadow-token-lg h-12 w-12 sm:h-14 sm:w-14 bg-primary text-primary-foreground border-0 hover:bg-primary/90 touch-manipulation"
+            style={{ zIndex: 'var(--z-fixed)' }}
+          >
+            {mobileMenuOpen ? <X size={20} className="sm:w-6 sm:h-6" /> : <Menu size={20} className="sm:w-6 sm:h-6" />}
+          </Button>
+        </div>
+
+        {/* Mobile Menu Overlay - Enhanced */}
+        {mobileMenuOpen && (
+          <div 
+            className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ zIndex: 'var(--z-modal-backdrop)' }}
+          >
+            <div 
+              className="mobile-menu-panel absolute right-0 top-0 h-full w-full sm:w-80 bg-card border-l border-border shadow-token-2xl overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+              style={{ zIndex: 'var(--z-modal)' }}
             >
-              {item.icon}
-              {item.name}
-            </button>
-          ))}
-          
-          <div className="pt-10 border-t mt-6 border-dashed border-primary/20">
-            <Text size="xs" muted className="px-4 italic leading-relaxed">
-              Operational profile: <span className="text-primary font-bold">{userRole}</span>
-            </Text>
+              {/* Mobile Header */}
+              <div className="sticky top-0 bg-card/95 backdrop-blur-sm border-b border-border/50 px-4 py-4 sm:px-6 sm:py-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-token-lg bg-primary/10 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                    </div>
+                    <Text size="base" weight="bold" className="sm:text-lg">Navigation</Text>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)} className="h-10 w-10 sm:h-11 sm:w-11 touch-manipulation rounded-token-full hover:bg-muted">
+                  <X size={18} className="sm:w-5 sm:h-5" />
+                </Button>
+                </div>
+              </div>
+              
+              {/* Mobile Navigation */}
+              <div className="p-4 sm:p-6 space-y-5">
+                {menuGroups.map((group) => {
+                  const filteredGroupItems = group.items.filter(item => item.roles.includes(userRole));
+                  if (filteredGroupItems.length === 0) return null;
+                  
+                  return (
+                    <div key={group.label}>
+                      <div className="px-2 py-1.5 mb-2">
+                        <Text size="xs" weight="bold" muted className="uppercase tracking-[0.15em] opacity-50 text-[10px]">
+                          {group.label}
+                        </Text>
+              </div>
+              <nav className="space-y-1">
+                        {filteredGroupItems.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = activeTab === item.name;
+                          
+                          return (
+                  <button
+                    key={item.name}
+                    onClick={() => {
+                      handleTabChange(item.name);
+                      setMobileMenuOpen(false);
+                    }}
+                              className={`group w-full flex items-center gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-token-xl text-sm font-medium transition-all duration-200 touch-manipulation min-h-[52px] relative overflow-hidden ${
+                                isActive 
+                                  ? 'bg-primary text-primary-foreground shadow-token-md' 
+                                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground active:bg-muted'
+                              }`}
+                            >
+                              {/* Active indicator */}
+                              <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ${
+                                isActive ? 'h-7 bg-primary-foreground/30' : 'h-0'
+                              }`} />
+                              
+                              {/* Icon */}
+                              <div className={`flex items-center justify-center w-9 h-9 rounded-token-lg transition-all duration-200 ${
+                                isActive 
+                                  ? 'bg-primary-foreground/15' 
+                                  : 'bg-muted/50'
+                              }`}>
+                                <Icon size={18} />
+                              </div>
+                              
+                              {/* Label */}
+                              <span className="flex-1 text-left">{item.name}</span>
+                              
+                              {/* Badge */}
+                              {item.badge && (
+                                <span className={`px-2.5 py-1 text-[10px] font-bold rounded-token-full ${
+                                  isActive 
+                                    ? 'bg-primary-foreground/20 text-primary-foreground' 
+                                    : 'bg-destructive/10 text-destructive'
+                                }`}>
+                                  {item.badge}
+                                </span>
+                              )}
+                              
+                              <ChevronRight size={16} className={`transition-all duration-200 ${
+                                isActive ? 'opacity-60' : 'opacity-0 group-hover:opacity-40'
+                              }`} />
+                  </button>
+                          );
+                        })}
+              </nav>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Mobile Profile Section */}
+              <div className="sticky bottom-0 bg-card/95 backdrop-blur-sm border-t border-border/50 p-4 sm:p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="relative">
+                    <div className="w-11 h-11 rounded-token-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-token-sm">
+                      <User className="w-5 h-5 text-primary-foreground" />
+                    </div>
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-card" />
+                  </div>
+                  <div className="flex-1">
+                    <Text size="sm" weight="bold">Administrator</Text>
+                    <div className="flex items-center gap-1.5">
+                      <Shield size={11} className="text-primary" />
+                      <Text size="xs" className="text-primary font-semibold uppercase tracking-wide text-[10px]">
+                        {userRole.replace('_', ' ')}
+                  </Text>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-muted/50 rounded-token-lg px-3 py-2.5 text-center">
+                    <Text size="lg" weight="bold" className="text-primary">{stats.occupancy}%</Text>
+                    <Text size="xs" muted className="text-[9px] uppercase tracking-wider opacity-70">Occupancy</Text>
+                  </div>
+                  <div className="bg-muted/50 rounded-token-lg px-3 py-2.5 text-center">
+                    <Text size="lg" weight="bold" className="text-info">{stats.kitchenPending + stats.housekeepingPending}</Text>
+                    <Text size="xs" muted className="text-[9px] uppercase tracking-wider opacity-70">Pending</Text>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Sidebar Navigation - Fixed Position */}
+        <aside 
+          className={`hidden lg:block shrink-0 transition-all duration-300 ease-in-out ${
+            sidebarOpen ? 'w-64 xl:w-72' : 'w-0'
+          }`}
+        >
+          <div 
+            className={`fixed top-16 left-0 bottom-0 bg-card border-r border-border overflow-hidden transition-all duration-300 ease-in-out ${
+              sidebarOpen ? 'w-64 xl:w-72 translate-x-0' : 'w-64 xl:w-72 -translate-x-full'
+            }`}
+            style={{ zIndex: 40 }}
+          >
+            <div className="h-full overflow-y-auto p-3 xl:p-4">
+              {/* Navigation Groups */}
+              <div className="space-y-4">
+                {menuGroups.map((group, groupIndex) => {
+                  const filteredGroupItems = group.items.filter(item => item.roles.includes(userRole));
+                  if (filteredGroupItems.length === 0) return null;
+                  
+                  return (
+                    <div key={group.label} className="nav-group">
+                      <div className="px-2 xl:px-3 py-1.5 mb-1">
+                        <Text size="xs" weight="bold" muted className="uppercase tracking-[0.15em] opacity-50 text-[10px] xl:text-[11px]">
+                          {group.label}
+                        </Text>
+                      </div>
+                      <nav className="space-y-0.5">
+                        {filteredGroupItems.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = activeTab === item.name;
+                          
+                          return (
+                            <button
+                              key={item.name}
+                              onClick={() => handleTabChange(item.name)}
+                              className={`nav-item group w-full flex items-center gap-2.5 xl:gap-3 px-3 xl:px-4 py-2.5 xl:py-3 rounded-token-xl text-xs xl:text-sm font-medium transition-all duration-200 touch-manipulation relative overflow-hidden ${
+                                isActive 
+                                  ? 'bg-primary text-primary-foreground shadow-token-md' 
+                                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                              }`}
+                            >
+                              {/* Active indicator line */}
+                              <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ${
+                                isActive ? 'h-6 bg-primary-foreground/30' : 'h-0 bg-primary'
+                              }`} />
+                              
+                              {/* Icon container */}
+                              <div className={`relative flex items-center justify-center w-8 h-8 rounded-token-lg transition-all duration-200 ${
+                                isActive 
+                                  ? 'bg-primary-foreground/15' 
+                                  : 'bg-muted/50 group-hover:bg-primary/10 group-hover:scale-105'
+                              }`}>
+                                <Icon size={16} className={`transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`} />
+                              </div>
+                              
+                              {/* Label */}
+                              <span className="flex-1 text-left truncate">{item.name}</span>
+                              
+                              {/* Badge */}
+                              {item.badge && (
+                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-token-full ${
+                                  isActive 
+                                    ? 'bg-primary-foreground/20 text-primary-foreground' 
+                                    : 'bg-destructive/10 text-destructive'
+                                }`}>
+                                  {item.badge}
+                                </span>
+                              )}
+                              
+                              {/* Chevron for active */}
+                              <ChevronRight size={14} className={`transition-all duration-200 ${
+                                isActive 
+                                  ? 'opacity-60 translate-x-0' 
+                                  : 'opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0'
+                              }`} />
+                            </button>
+                          );
+                        })}
+                      </nav>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </aside>
 
-        <div className="flex-1 min-w-0">
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-700">
+        {/* Main Content Area */}
+        <div className={`flex-1 min-w-0 transition-all duration-300 ${sidebarOpen ? 'lg:ml-0' : 'lg:ml-0'}`}>
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
             {renderContent()}
           </div>
         </div>
@@ -134,21 +390,5 @@ const App: React.FC = () => {
   );
 };
 
-const DashboardStat = ({ label, value, sub, trend }: { label: string, value: string | number, sub: string, trend: string }) => {
-  const trendColor = {
-    stable: 'bg-primary/5 border-primary/20 ring-primary/5',
-    active: 'bg-blue-500/5 border-blue-500/20 ring-blue-500/5',
-    warning: 'bg-orange-500/5 border-orange-500/20 ring-orange-500/5',
-    destructive: 'bg-destructive/5 border-destructive/20 ring-destructive/5'
-  }[trend as 'stable' | 'active' | 'warning' | 'destructive'];
-
-  return (
-    <Card className={`p-8 ${trendColor} border shadow-none ring-1 transition-transform hover:scale-[1.02]`}>
-       <Text weight="bold" size="xs" muted className="mb-4 uppercase tracking-widest opacity-90">{label}</Text>
-       <Text size="3xl" weight="bold" className="mb-2 tracking-tighter">{value}</Text>
-       <Text size="xs" weight="bold" muted className="opacity-80">{sub}</Text>
-    </Card>
-  );
-}
 
 export default App;

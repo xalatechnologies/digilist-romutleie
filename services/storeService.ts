@@ -1,16 +1,15 @@
-
 import { 
   IRoom, IBooking, RoomStatus, RoomType, BookingStatus, 
   IMealOrder, IMaintenanceTicket, IInvoice, IHousekeepingTask, 
   IKitchenItem, IDailySummary, IAuditLog, MaintenancePriority, IPayment,
-  CustomerType, PaymentMethod
+  CustomerType, PaymentMethod, IRoomSummary, RoomOccupancy
 } from '../types';
 
 const INITIAL_ROOMS: IRoom[] = [
   { id: '1', number: '101', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
   { id: '2', number: '102', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
   { id: '3', number: '201', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.DIRTY },
-  { id: '4', number: '301', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.OUT_OF_SERVICE },
+  { id: '4', number: '301', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.OUT_OF_SERVICE, outOfServiceReason: 'Plumbing issue' },
   { id: '5', number: '302', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.CLEAN },
   { id: '6', number: '103', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
 ];
@@ -89,14 +88,48 @@ class StoreService {
   getRooms() { return this.rooms; }
   getRoomById(id: string) { return this.rooms.find(r => r.id === id); }
   
-  updateRoomStatus(id: string, status: RoomStatus, userId: string = 'Staff') {
+  updateRoomStatus(id: string, status: RoomStatus, userId: string = 'Staff', reason?: string, note?: string, returnDate?: string, ticketId?: string) {
     const room = this.rooms.find(r => r.id === id);
     if (room) {
       const oldStatus = room.status;
       room.status = status;
-      this.logAction('ROOM', userId, 'STATUS_CHANGE', `Room ${room.number}: ${oldStatus} -> ${status}`);
+      
+      if (status === RoomStatus.OUT_OF_SERVICE) {
+        if (reason) room.outOfServiceReason = reason;
+        if (note) room.outOfServiceNote = note;
+        if (returnDate) room.expectedReturnDate = returnDate;
+        if (ticketId) room.linkedTicketId = ticketId;
+      } else {
+        delete room.outOfServiceReason;
+        delete room.outOfServiceNote;
+        delete room.expectedReturnDate;
+        delete room.linkedTicketId;
+      }
+
+      // Human-readable log generation
+      let logMessage = '';
+      if (status === RoomStatus.OUT_OF_SERVICE) {
+         logMessage = `Unit set out of service (${reason || 'No reason'})`;
+      } else if (oldStatus === RoomStatus.OUT_OF_SERVICE && status !== RoomStatus.OUT_OF_SERVICE) {
+         logMessage = `Unit restored to service (condition set to ${status})`;
+      } else {
+         logMessage = `Housekeeping status changed: ${oldStatus} -> ${status}`;
+      }
+
+      this.logAction('ROOM', userId, 'STATUS_CHANGE', logMessage);
     }
     return [...this.rooms];
+  }
+
+  getFutureBookingCount(roomId: string): number {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    return this.bookings.filter(b => 
+      b.roomId === roomId && 
+      b.status !== BookingStatus.CANCELLED && 
+      b.status !== BookingStatus.CHECKED_OUT &&
+      new Date(b.startDate) >= today
+    ).length;
   }
 
   isRoomAvailable(roomId: string, startDate: string, endDate: string): boolean {
@@ -112,6 +145,74 @@ class StoreService {
       return newStart < bEnd && newEnd > bStart;
     });
     return !overlaps;
+  }
+
+  // Helper to simulate backend summary logic
+  getRoomSummaries(date: string = new Date().toISOString().split('T')[0]): IRoomSummary[] {
+    const targetDate = new Date(date);
+    targetDate.setHours(0,0,0,0);
+
+    return this.rooms.map(room => {
+      // Determine Occupancy
+      let occupancy = RoomOccupancy.FREE;
+      let nextEvent = 'No upcoming events';
+      let currentBooking: IBooking | undefined;
+
+      // Find relevant bookings
+      const activeBooking = this.bookings.find(b => {
+        if (b.roomId !== room.id) return false;
+        if (b.status === BookingStatus.CANCELLED) return false;
+        const start = new Date(b.startDate);
+        const end = new Date(b.endDate);
+        // If booking covers today
+        return targetDate >= start && targetDate < end;
+      });
+
+      const nextBooking = this.bookings
+        .filter(b => b.roomId === room.id && b.status !== BookingStatus.CANCELLED && new Date(b.startDate) > targetDate)
+        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0];
+
+      if (activeBooking) {
+        currentBooking = activeBooking;
+        const end = new Date(activeBooking.endDate);
+        const isCheckoutToday = end.toDateString() === targetDate.toDateString();
+
+        if (activeBooking.status === BookingStatus.CHECKED_IN) {
+          occupancy = isCheckoutToday ? RoomOccupancy.DEPARTING : RoomOccupancy.OCCUPIED;
+          nextEvent = isCheckoutToday ? 'Checkout today 11:00' : `Occupied until ${activeBooking.endDate}`;
+        } else if (activeBooking.status === BookingStatus.CONFIRMED) {
+          // If reserved for today but not checked in yet
+           const start = new Date(activeBooking.startDate);
+           const isArrivalToday = start.toDateString() === targetDate.toDateString();
+           occupancy = RoomOccupancy.RESERVED;
+           nextEvent = isArrivalToday ? 'Arrival today 15:00' : `Reserved from ${activeBooking.startDate}`;
+        }
+      } else {
+        // No active booking
+        if (nextBooking) {
+          nextEvent = `Next arrival: ${nextBooking.startDate}`;
+        } else {
+          nextEvent = 'Available for 7+ days';
+        }
+
+        // Override if OOS
+        if (room.status === RoomStatus.OUT_OF_SERVICE) {
+           nextEvent = `Blocked: ${room.outOfServiceReason || 'Maintenance'}`;
+        }
+      }
+
+      const hasHousekeeping = this.housekeepingTasks.some(t => t.roomId === room.id && t.status !== 'Completed');
+      const hasMaintenance = this.tickets.some(t => t.roomId === room.id && t.status !== 'Resolved');
+
+      return {
+        ...room,
+        occupancy,
+        nextEvent,
+        hasHousekeeping,
+        hasMaintenance,
+        currentBooking
+      };
+    });
   }
 
   // Booking Logic
@@ -250,7 +351,6 @@ class StoreService {
     return invoice;
   }
 
-  getPayments() { return this.payments; }
   createPayment(invoiceId: string, userId: string = 'Staff') {
     const invoice = this.invoices.find(i => i.id === invoiceId);
     if (!invoice) throw new Error("Invoice not found");

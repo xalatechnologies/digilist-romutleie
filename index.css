@@ -1,0 +1,408 @@
+/* Import Xala Platform CSS Tokens */
+/* Note: Uncomment this line once @xalatechnologies/platform is installed */
+/* @import '@xalatechnologies/platform/dist/tokens.css'; */
+
+/* Xala Platform CSS Token System */
+/* These tokens will be overridden by platform tokens when package is installed */
+
+:root {
+  /* Base Colors */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  
+  /* Primary Colors */
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --primary-hover: 221.2 83.2% 48%;
+  --primary-active: 221.2 83.2% 43%;
+  
+  /* Secondary Colors */
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --secondary-hover: 210 40% 91%;
+  
+  /* Muted Colors */
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  
+  /* Accent Colors */
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  
+  /* Destructive Colors */
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --destructive-hover: 0 84.2% 55%;
+  
+  /* Success Colors */
+  --success: 142 76% 36%;
+  --success-foreground: 210 40% 98%;
+  --success-hover: 142 76% 31%;
+  
+  /* Warning Colors */
+  --warning: 38 92% 50%;
+  --warning-foreground: 210 40% 98%;
+  --warning-hover: 38 92% 45%;
+  
+  /* Info Colors */
+  --info: 199 89% 48%;
+  --info-foreground: 210 40% 98%;
+  --info-hover: 199 89% 43%;
+  
+  /* Card Colors */
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --card-border: 214.3 31.8% 91.4%;
+  
+  /* Popover Colors */
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  
+  /* Border & Input */
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --input-focus: 221.2 83.2% 53.3%;
+  
+  /* Ring (Focus) */
+  --ring: 221.2 83.2% 53.3%;
+  --ring-offset: 0 0% 100%;
+  
+  /* Radius - Ultra Sharp */
+  --radius: 0.125rem;
+  --radius-sm: 0px;
+  --radius-md: 0.125rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.75rem;
+  --radius-full: 9999px;
+  
+  /* Spacing Scale (for consistency) */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+  
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Fira Code', 'Courier New', monospace;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  
+  /* Z-Index Scale */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --primary-hover: 217.2 91.2% 64.8%;
+  --primary-active: 217.2 91.2% 54.8%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --secondary-hover: 217.2 32.6% 22.5%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --destructive-hover: 0 62.8% 35.6%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --card-border: 217.2 32.6% 17.5%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --input-focus: 217.2 91.2% 59.8%;
+  --ring: 224.3 76.3% 48%;
+  --ring-offset: 222.2 84% 4.9%;
+}
+
+/* Base Styles */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Focus visible styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+/* Component Styles */
+@layer components {
+  /* Button base using tokens - Mobile First */
+  .btn-base {
+    @apply inline-flex items-center justify-center rounded-md font-semibold leading-none;
+    @apply text-foreground;
+    @apply transition-colors;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+    border-radius: var(--radius-md);
+    min-height: 44px; /* Minimum touch target size for mobile */
+    touch-action: manipulation; /* Prevent double-tap zoom on mobile */
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+    flex-wrap: nowrap !important; /* Never wrap button content */
+    flex-direction: row !important; /* Force horizontal layout */
+    white-space: nowrap !important; /* Keep text on single line */
+  }
+  
+  /* Ensure button content stays on one line */
+  .btn-base > *,
+  button > * {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+  
+  /* Ensure icons align properly with text in buttons */
+  .btn-base svg,
+  button svg {
+    display: block;
+    flex-shrink: 0;
+    align-self: center;
+    line-height: 1;
+  }
+  
+  /* Ensure button text and icons stay on same line */
+  .btn-base,
+  button.btn-base {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    flex-direction: row !important;
+    white-space: nowrap !important;
+  }
+  
+  /* Force all buttons to use row layout */
+  button {
+    flex-wrap: nowrap !important;
+    flex-direction: row !important;
+    white-space: nowrap !important;
+  }
+  
+  /* Touch manipulation utility */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Card base using tokens */
+  .card-base {
+    @apply bg-card text-card-foreground rounded-lg border shadow-sm;
+    border-color: hsl(var(--card-border));
+    border-radius: var(--radius-lg);
+  }
+  
+  /* Input base using tokens - Mobile First */
+  .input-base {
+    @apply flex h-11 w-full rounded-md border bg-background px-3 sm:px-4 py-2;
+    @apply text-base ring-offset-background;
+    @apply file:border-0 file:bg-transparent file:text-sm file:font-medium;
+    @apply placeholder:text-muted-foreground;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+    border-color: hsl(var(--input));
+    border-radius: var(--radius-md);
+    min-height: 44px; /* Minimum touch target size */
+    font-size: 16px; /* Prevent zoom on iOS input focus */
+    touch-action: manipulation;
+  }
+  
+  .input-base:focus-visible {
+    border-color: hsl(var(--input-focus));
+  }
+  
+  /* Mobile-optimized table scrolling */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  
+  .table-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .table-scroll::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  
+  .table-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+}
+
+/* Utility Classes */
+@layer utilities {
+  /* Text colors using tokens */
+  .text-primary { color: hsl(var(--primary)); }
+  .text-primary-foreground { color: hsl(var(--primary-foreground)); }
+  .text-secondary { color: hsl(var(--secondary)); }
+  .text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
+  .text-muted { color: hsl(var(--muted-foreground)); }
+  .text-destructive { color: hsl(var(--destructive)); }
+  .text-success { color: hsl(var(--success)); }
+  .text-warning { color: hsl(var(--warning)); }
+  .text-info { color: hsl(var(--info)); }
+  
+  /* Background colors using tokens */
+  .bg-primary { background-color: hsl(var(--primary)); }
+  .bg-primary-foreground { background-color: hsl(var(--primary-foreground)); }
+  .bg-secondary { background-color: hsl(var(--secondary)); }
+  .bg-muted { background-color: hsl(var(--muted)); }
+  .bg-destructive { background-color: hsl(var(--destructive)); }
+  .bg-success { background-color: hsl(var(--success)); }
+  .bg-warning { background-color: hsl(var(--warning)); }
+  .bg-info { background-color: hsl(var(--info)); }
+  
+  /* Border colors using tokens */
+  .border-primary { border-color: hsl(var(--primary)); }
+  .border-secondary { border-color: hsl(var(--secondary)); }
+  .border-muted { border-color: hsl(var(--muted)); }
+  .border-destructive { border-color: hsl(var(--destructive)); }
+  
+  /* Radius utilities using tokens */
+  .rounded-token-sm { border-radius: var(--radius-sm); }
+  .rounded-token-md { border-radius: var(--radius-md); }
+  .rounded-token-lg { border-radius: var(--radius-lg); }
+  .rounded-token-xl { border-radius: var(--radius-xl); }
+  .rounded-token-2xl { border-radius: var(--radius-2xl); }
+  .rounded-token-3xl { border-radius: var(--radius-3xl); }
+  .rounded-token-full { border-radius: var(--radius-full); }
+  
+  /* Shadow utilities using tokens */
+  .shadow-token-sm { box-shadow: var(--shadow-sm); }
+  .shadow-token-md { box-shadow: var(--shadow-md); }
+  .shadow-token-lg { box-shadow: var(--shadow-lg); }
+  .shadow-token-xl { box-shadow: var(--shadow-xl); }
+  .shadow-token-2xl { box-shadow: var(--shadow-2xl); }
+  
+  /* Transition utilities using tokens */
+  .transition-token-fast { transition: all var(--transition-fast); }
+  .transition-token-base { transition: all var(--transition-base); }
+  .transition-token-slow { transition: all var(--transition-slow); }
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Enhanced Sidebar Animations */
+@keyframes sidebar-card-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes nav-group-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nav-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.sidebar-card {
+  animation: sidebar-card-in 0.4s ease-out forwards;
+}
+
+.nav-group {
+  animation: nav-group-in 0.3s ease-out forwards;
+  animation-fill-mode: both;
+}
+
+.nav-item {
+  animation: nav-item-in 0.25s ease-out forwards;
+  animation-fill-mode: both;
+}
+
+/* Sidebar nav item hover effects */
+.nav-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, hsl(var(--primary) / 0.05), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: inherit;
+}
+
+.nav-item:hover::before {
+  opacity: 1;
+}
+
+/* Active nav item glow */
+.nav-item.bg-primary {
+  box-shadow: 
+    0 4px 6px -1px hsl(var(--primary) / 0.2),
+    0 2px 4px -2px hsl(var(--primary) / 0.1),
+    0 0 0 1px hsl(var(--primary) / 0.1);
+}
+
+/* Mobile menu slide-in animation */
+@keyframes mobile-menu-slide {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.mobile-menu-panel {
+  animation: mobile-menu-slide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
