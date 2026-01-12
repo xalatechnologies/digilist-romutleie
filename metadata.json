@@ -1,0 +1,7 @@
+{
+  "name": "Digilist",
+  "description": "Integrated Room, Kitchen, and Billing system.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
