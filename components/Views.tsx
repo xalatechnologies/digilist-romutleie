@@ -1451,9 +1451,10 @@ export const BookingView = ({
                       e.stopPropagation();
                       setSelectedBookingId(b.id);
                     }}
-                    className="text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-xs flex items-center gap-1"
                   >
                     {t('common.view', 'View')}
+                    <ChevronRight size={14} />
                    </Button>
                 </td>
               </tr>
@@ -2262,9 +2263,10 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                   e.stopPropagation();
                   setSelectedRoomId(room.id);
                 }}
-                className="text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-xs flex items-center gap-1"
               >
                 {t('common.view', 'View')}
+                <ChevronRight size={14} />
                   </Button>
             </td>
           </tr>
@@ -3129,9 +3131,10 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
                     e.stopPropagation();
                     setSelectedInvoiceId(invoice.id);
                   }}
-                  className="text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-xs flex items-center gap-1"
                 >
                   {t('common.view', 'View')}
+                  <ChevronRight size={14} />
                               </Button>
               </td>
             </tr>
