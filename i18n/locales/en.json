@@ -270,7 +270,7 @@
       "includesVat": "Includes VAT and all added fees",
       "orders": "Orders"
     },
-    "status": {
+    "statusValues": {
       "draft": "Draft",
       "confirmed": "Confirmed",
       "checkedIn": "Checked In",
@@ -414,7 +414,8 @@
     "readyForCheckout": "Ready for checkout",
     "pendingFinalisation": "Pending ledger finalisation & ERP sync",
     "generateInvoice": "Generate Invoice",
-    "status": {
+    "status": "Status",
+    "statusValues": {
       "draft": "Draft",
       "sent": "Sent",
       "paid": "Paid",

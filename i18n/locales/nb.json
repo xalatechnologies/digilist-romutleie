@@ -269,7 +269,7 @@
       "includesVat": "Inkluderer MVA og alle tilleggsavgifter",
       "orders": "Bestillinger"
     },
-    "status": {
+    "statusValues": {
       "draft": "Utkast",
       "confirmed": "Bekreftet",
       "checkedIn": "Sjekket inn",
@@ -413,7 +413,8 @@
     "readyForCheckout": "Klar for utsjekking",
     "pendingFinalisation": "Venter på registerfinalisering og ERP-synkronisering",
     "generateInvoice": "Generer faktura",
-    "status": {
+    "status": "Status",
+    "statusValues": {
       "draft": "Utkast",
       "sent": "Sendt",
       "paid": "Betalt",

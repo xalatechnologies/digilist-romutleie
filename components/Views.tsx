@@ -621,11 +621,11 @@ export const BookingView = ({
                   <option value="">{t('bookings.allStatuses', 'All statuses')}</option>
                   {Object.values(BookingStatus).map(s => (
                     <option key={s} value={s}>
-                      {s === BookingStatus.DRAFT ? t('bookings.status.draft', 'Draft') :
-                       s === BookingStatus.CONFIRMED ? t('bookings.status.confirmed', 'Confirmed') :
-                       s === BookingStatus.CHECKED_IN ? t('bookings.status.checkedIn', 'Checked In') :
-                       s === BookingStatus.CHECKED_OUT ? t('bookings.status.checkedOut', 'Checked Out') :
-                       s === BookingStatus.CANCELLED ? t('bookings.status.cancelled', 'Cancelled') : String(s).replace('_', ' ')}
+                      {s === BookingStatus.DRAFT ? t('bookings.statusValues.draft', 'Draft') :
+                       s === BookingStatus.CONFIRMED ? t('bookings.statusValues.confirmed', 'Confirmed') :
+                       s === BookingStatus.CHECKED_IN ? t('bookings.statusValues.checkedIn', 'Checked In') :
+                       s === BookingStatus.CHECKED_OUT ? t('bookings.statusValues.checkedOut', 'Checked Out') :
+                       s === BookingStatus.CANCELLED ? t('bookings.statusValues.cancelled', 'Cancelled') : String(s).replace('_', ' ')}
                     </option>
                   ))}
                 </Select>
@@ -1487,6 +1487,7 @@ const RoomDetailDrawer: React.FC<{
   const { t } = useTranslation();
   const [room, setRoom] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockForm, setBlockForm] = useState({ reason: BlockReason.MAINTENANCE, note: '', expectedReturnAt: '' });
   const [auditLogs, setAuditLogs] = useState<IAuditLog[]>([]);
@@ -1494,46 +1495,235 @@ const RoomDetailDrawer: React.FC<{
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const toDate = new Date(today);
-    toDate.setDate(toDate.getDate() + 7);
+    setError(null);
+    
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const toDate = new Date(today);
+      toDate.setDate(toDate.getDate() + 7);
 
-    // Fetch detail
-    fetchRoomDetail(roomId, {
-      from: today.toISOString(),
-      to: toDate.toISOString(),
-    }).then(data => {
+      // Fetch detail
+      fetchRoomDetail(roomId, {
+        from: today.toISOString(),
+        to: toDate.toISOString(),
+      }).then(data => {
+        if (!cancelled) {
+          setRoom(data);
+          setLoading(false);
+        }
+      }).catch(err => {
+      console.error('Failed to fetch room detail from API, using store data:', err);
       if (!cancelled) {
-        setRoom(data);
-        setLoading(false);
+        try {
+          // Fallback to store data
+          const storeRoom = store.getRoomById(roomId);
+          if (storeRoom) {
+            const summaries = store.getRoomSummaries(today.toISOString().split('T')[0]);
+            const roomSummary = summaries.find(s => s.id === roomId);
+            
+            // Build outlook from bookings
+            const outlook: any[] = [];
+            for (let i = 0; i < 7; i++) {
+              const date = new Date(today);
+              date.setDate(date.getDate() + i);
+              const dateStr = date.toISOString().split('T')[0];
+              
+              const bookings = store.getBookings().filter(b => {
+                if (b.roomId !== roomId || b.status === BookingStatus.CANCELLED) return false;
+                const start = new Date(b.startDate);
+                const end = new Date(b.endDate);
+                return date >= start && date < end;
+              });
+              
+              outlook.push({
+                date: dateStr,
+                reservations: bookings.map(b => ({
+                  id: b.id,
+                  startDate: b.startDate,
+                  endDate: b.endDate,
+                  status: b.status,
+                  customerName: b.customerName
+                }))
+              });
+            }
+            
+            const mockDetail: any = {
+              ...storeRoom,
+              id: storeRoom.id || roomId,
+              number: storeRoom.number || roomId,
+              type: storeRoom.type || RoomType.SINGLE,
+              status: storeRoom.status || RoomStatus.CLEAN,
+              occupancyState: roomSummary?.occupancy || RoomOccupancy.FREE,
+              nextEventText: roomSummary?.nextEvent || 'No upcoming events',
+              blocked: storeRoom.status === RoomStatus.OUT_OF_SERVICE,
+              outlook: outlook,
+              outOfServiceReason: storeRoom.outOfServiceReason,
+              outOfServiceNote: storeRoom.outOfServiceNote,
+              expectedReturnDate: storeRoom.expectedReturnDate
+            };
+            
+            setRoom(mockDetail);
+          } else {
+            // Room not found in store either
+            console.warn(`Room ${roomId} not found in store`);
+            setRoom(null);
+          }
+        } catch (fallbackError) {
+          console.error('Error in fallback logic:', fallbackError);
+          setRoom(null);
+        } finally {
+          setLoading(false);
+        }
       }
-    }).catch(err => {
-      console.error(err);
-      if (!cancelled) setLoading(false);
-    });
+      });
+    } catch (err: any) {
+      console.error('Error in RoomDetailDrawer useEffect:', err);
+      setError(err.message || 'Unknown error');
+      setLoading(false);
+    }
 
     // Fetch audit logs
-    const logs = store.getAuditLogs().filter(l => l.entityType === AuditEntityType.ROOM && l.entityId === roomId);
-    setAuditLogs(logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20));
+    try {
+      const logs = store.getAuditLogs().filter(l => l.entityType === AuditEntityType.ROOM && l.entityId === roomId);
+      setAuditLogs(logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20));
+    } catch (err) {
+      console.error('Error fetching audit logs:', err);
+      setAuditLogs([]);
+    }
 
     return () => { cancelled = true; };
   }, [roomId]);
 
-  if (!room && loading) return <DetailDrawer isOpen={true} onClose={onClose} title={t('common.loading')} ><Loader2 className="animate-spin" /></DetailDrawer>;
-  if (!room) return null;
+  if (error) {
+    return (
+      <DetailDrawer isOpen={true} onClose={onClose} title={t('rooms.error', 'Error')}>
+        <div className="p-4">
+          <Text size="sm" className="text-destructive">
+            {error}
+          </Text>
+          <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>
+            {t('common.close', 'Close')}
+          </Button>
+        </div>
+      </DetailDrawer>
+    );
+  }
+
+  if (!room && loading) {
+    return (
+      <DetailDrawer isOpen={true} onClose={onClose} title={t('common.loading', 'Loading...')}>
+        <div className="flex items-center justify-center p-8">
+          <Loader2 className="animate-spin text-primary" size={32} />
+        </div>
+      </DetailDrawer>
+    );
+  }
+  
+  if (!room) {
+    return (
+      <DetailDrawer isOpen={true} onClose={onClose} title={t('rooms.error', 'Error')}>
+        <div className="p-4">
+          <Text size="sm" className="text-destructive">
+            {t('rooms.roomNotFound', 'Room not found')}
+          </Text>
+          <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>
+            {t('common.close', 'Close')}
+          </Button>
+        </div>
+      </DetailDrawer>
+    );
+  }
+
+  // Safety check - ensure room is valid before proceeding
+  if (!room || !room.id) {
+    return (
+      <DetailDrawer isOpen={true} onClose={onClose} title={t('rooms.error', 'Error')}>
+        <div className="p-4">
+          <Text size="sm" className="text-destructive">
+            {t('rooms.roomNotFound', 'Room not found')}
+          </Text>
+        </div>
+      </DetailDrawer>
+    );
+  }
 
   const canEdit = ['ADMIN', 'HOUSEKEEPING', 'MAINTENANCE'].includes(userRole);
   const canBlock = ['ADMIN', 'MAINTENANCE'].includes(userRole);
   const isBlocked = room.status === RoomStatus.OUT_OF_SERVICE;
 
+  // Helper to refetch room data with fallback
+  const refetchRoomData = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const toDate = new Date(today);
+    toDate.setDate(toDate.getDate() + 7);
+
+    try {
+      const data = await fetchRoomDetail(roomId, {
+        from: today.toISOString(),
+        to: toDate.toISOString(),
+      });
+      setRoom(data);
+    } catch (err) {
+      console.error('Failed to refetch room detail, using store data:', err);
+      // Fallback to store data
+      const storeRoom = store.getRoomById(roomId);
+      if (storeRoom) {
+        const summaries = store.getRoomSummaries(today.toISOString().split('T')[0]);
+        const roomSummary = summaries.find(s => s.id === roomId);
+        
+        // Build outlook from bookings
+        const outlook: any[] = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(today);
+          date.setDate(date.getDate() + i);
+          const dateStr = date.toISOString().split('T')[0];
+          
+          const bookings = store.getBookings().filter(b => {
+            if (b.roomId !== roomId || b.status === BookingStatus.CANCELLED) return false;
+            const start = new Date(b.startDate);
+            const end = new Date(b.endDate);
+            return date >= start && date < end;
+          });
+          
+          outlook.push({
+            date: dateStr,
+            reservations: bookings.map(b => ({
+              id: b.id,
+              startDate: b.startDate,
+              endDate: b.endDate,
+              status: b.status,
+              customerName: b.customerName
+            }))
+          });
+        }
+        
+        const mockDetail: any = {
+          ...storeRoom,
+          id: storeRoom.id || roomId,
+          number: storeRoom.number || roomId,
+          type: storeRoom.type || RoomType.SINGLE,
+          status: storeRoom.status || RoomStatus.CLEAN,
+          occupancyState: roomSummary?.occupancy || RoomOccupancy.FREE,
+          nextEventText: roomSummary?.nextEvent || 'No upcoming events',
+          blocked: storeRoom.status === RoomStatus.OUT_OF_SERVICE,
+          outlook: outlook,
+          outOfServiceReason: storeRoom.outOfServiceReason,
+          outOfServiceNote: storeRoom.outOfServiceNote,
+          expectedReturnDate: storeRoom.expectedReturnDate
+        };
+        
+        setRoom(mockDetail);
+      }
+    }
+  };
+
   const handleStatusChange = async (status: RoomStatus) => {
     try {
       await store.updateRoomStatus(roomId, status, userRole);
       onUpdate();
-      // Refetch locally
-      const updated = await fetchRoomDetail(roomId);
-      setRoom(updated);
+      await refetchRoomData();
     } catch (e: any) {
       alert(e.message);
     }
@@ -1548,8 +1738,7 @@ const RoomDetailDrawer: React.FC<{
       }, userRole);
       setShowBlockModal(false);
       onUpdate();
-      const updated = await fetchRoomDetail(roomId);
-      setRoom(updated);
+      await refetchRoomData();
     } catch (e: any) {
       alert(e.message);
     }
@@ -1560,8 +1749,7 @@ const RoomDetailDrawer: React.FC<{
       try {
         store.restoreUnit(roomId, userRole);
         onUpdate();
-        const updated = await fetchRoomDetail(roomId);
-        setRoom(updated);
+        await refetchRoomData();
       } catch (e: any) {
         alert(e.message);
       }
@@ -1573,18 +1761,18 @@ const RoomDetailDrawer: React.FC<{
       <DetailDrawer
         isOpen={true}
         onClose={onClose}
-        title={`${t('rooms.room')} ${room.number}`}
-        subtitle={room.type}
+        title={`${t('rooms.room', 'Room')} ${room.number || roomId}`}
+        subtitle={room.type || ''}
         actions={
           <div className="flex gap-2">
             <Badge variant={
               room.status === RoomStatus.CLEAN ? 'success' : 
               room.status === RoomStatus.DIRTY ? 'warning' : 'destructive'
             }>
-              {room.status.replace('_', ' ')}
+              {room.status ? room.status.replace('_', ' ') : RoomStatus.CLEAN}
             </Badge>
             <Badge variant="outline">
-              {room.occupancyState}
+              {room.occupancyState || RoomOccupancy.FREE}
             </Badge>
                     </div>
         }
@@ -1595,15 +1783,15 @@ const RoomDetailDrawer: React.FC<{
           <div className="p-4 bg-muted/20 rounded-lg border border-border space-y-2">
             <div className="flex justify-between">
               <Text size="sm" muted>{t('rooms.condition', 'Condition')}</Text>
-              <Text size="sm" weight="medium">{room.status.replace('_', ' ')}</Text>
+              <Text size="sm" weight="medium">{room.status ? room.status.replace('_', ' ') : RoomStatus.CLEAN}</Text>
                     </div>
             <div className="flex justify-between">
               <Text size="sm" muted>{t('rooms.occupancy', 'Occupancy')}</Text>
-              <Text size="sm" weight="medium">{room.occupancyState}</Text>
-                    </div>
+              <Text size="sm" weight="medium">{room.occupancyState || RoomOccupancy.FREE}</Text>
+            </div>
             {room.status === RoomStatus.OUT_OF_SERVICE && (
               <div className="p-2 bg-rose-50 border border-rose-200 rounded text-rose-800 text-sm mt-2">
-                <strong>{t('rooms.blocked', 'Blocked')}:</strong> {room.outOfServiceReason}
+                <strong>{t('rooms.blocked', 'Blocked')}:</strong> {room.outOfServiceReason || t('rooms.noReason', 'No reason provided')}
                 {room.outOfServiceNote && <div className="text-xs mt-1 opacity-80">{room.outOfServiceNote}</div>}
               </div>
             )}
@@ -1614,11 +1802,11 @@ const RoomDetailDrawer: React.FC<{
         <section className="space-y-4">
           <Text size="sm" weight="bold" muted className="uppercase tracking-widest">{t('rooms.outlook7Days', 'Outlook (7 Days)')}</Text>
           <div className="space-y-2">
-            {room.outlook?.slice(0, 7).map((day: any) => (
+            {(room.outlook || []).slice(0, 7).map((day: any) => (
               <div key={day.date} className="flex items-center gap-3 text-sm p-2 border border-border rounded-md">
                 <div className="w-24 font-mono text-muted-foreground">{new Date(day.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}</div>
                 <div className="flex-1">
-                  {day.reservations.length > 0 ? (
+                  {day.reservations && day.reservations.length > 0 ? (
                     day.reservations.map((res: any) => (
                       <Badge key={res.id} variant="outline" className="mr-1 bg-blue-50 text-blue-700 border-blue-200">
                         {res.status}
@@ -1627,8 +1815,8 @@ const RoomDetailDrawer: React.FC<{
                   ) : (
                     <span className="text-muted-foreground opacity-50">{t('rooms.free', 'Free')}</span>
                   )}
-                      </div>
-                    </div>
+                </div>
+              </div>
             ))}
           </div>
         </section>
@@ -1789,6 +1977,33 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
       q: filters.search || undefined
     }).then((response: any) => {
       if (!cancelled) {
+        // If API returns empty or no rooms, fallback to store
+        if (!response.rooms || response.rooms.length === 0) {
+          console.log('API returned empty rooms, using store data');
+          const storeSummaries = store.getRoomSummaries(filters.date);
+          const mapped = storeSummaries.map((r: any) => ({
+            id: r.id,
+            number: r.number,
+            type: r.type,
+            status: r.status,
+            occupancy: r.occupancy || RoomOccupancy.FREE,
+            nextEvent: r.nextEvent || 'No upcoming events',
+            blocked: r.status === RoomStatus.OUT_OF_SERVICE,
+            hasMaintenance: r.hasMaintenance || false,
+            hasHousekeeping: r.hasHousekeeping || false
+          }));
+          
+          // Client-side filtering for occupancy
+          let final = mapped;
+          if (filters.occupancy) {
+            final = final.filter((r: any) => r.occupancy === filters.occupancy);
+          }
+          
+          setSummaries(final);
+          setLoading(false);
+          return;
+        }
+        
         const mapped = response.rooms.map((r: any) => ({
           id: r.id,
           number: r.number,
@@ -1813,7 +2028,27 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
     }).catch((err) => {
       console.error('Failed to fetch room summaries:', err);
       if (!cancelled) {
-        setSummaries(store.getRoomSummaries());
+        // Fallback to store data with proper mapping
+        const storeSummaries = store.getRoomSummaries(filters.date);
+        const mapped = storeSummaries.map((r: any) => ({
+          id: r.id,
+          number: r.number,
+          type: r.type,
+          status: r.status,
+          occupancy: r.occupancy || RoomOccupancy.FREE,
+          nextEvent: r.nextEvent || 'No upcoming events',
+          blocked: r.status === RoomStatus.OUT_OF_SERVICE,
+          hasMaintenance: r.hasMaintenance || false,
+          hasHousekeeping: r.hasHousekeeping || false
+        }));
+        
+        // Client-side filtering for occupancy
+        let final = mapped;
+        if (filters.occupancy) {
+          final = final.filter((r: any) => r.occupancy === filters.occupancy);
+        }
+        
+        setSummaries(final);
         setLoading(false);
       }
     });
@@ -2038,12 +2273,14 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
 
       {/* ROOM DETAIL DRAWER */}
       {selectedRoomId && (
-        <RoomDetailDrawer
-          roomId={selectedRoomId}
-          userRole={currentRole}
-          onClose={() => setSelectedRoomId(null)}
-          onUpdate={() => setTick(t => t + 1)}
-        />
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <RoomDetailDrawer
+            roomId={selectedRoomId}
+            userRole={currentRole}
+            onClose={() => setSelectedRoomId(null)}
+            onUpdate={() => setTick(t => t + 1)}
+          />
+        </React.Suspense>
       )}
               </div>
   );
@@ -2178,208 +2415,197 @@ const InvoiceDetailDrawer: React.FC<{
   
   return (
     <>
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-full sm:w-[700px] bg-card border-l border-border shadow-2xl z-50 overflow-y-auto">
-        <div className="p-4 space-y-6">
-          {/* Invoice Header Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b-2 border-border pb-3">
-              <div className="space-y-1">
-                <Text size="sm" weight="bold" className="text-slate-400 font-mono">{invoice.id}</Text>
-                <Text size="xl" weight="bold" className="text-slate-900">{invoice.customerName}</Text>
-            </div>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X size={20} />
-              </Button>
-              </div>
-            
-            {/* Status & Dates */}
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className={getStatusColor(invoice.status)}>
-                {invoice.status}
-              </Badge>
-              {invoice.issuedAt && (
-                <Text size="xs" muted>Issued: {new Date(invoice.issuedAt).toLocaleDateString()}</Text>
-              )}
-              {invoice.dueDate && (
-                <Text size="xs" muted>Due: {new Date(invoice.dueDate).toLocaleDateString()}</Text>
-              )}
-            </div>
-            
-            {/* References */}
-            <div className="p-3 bg-muted/30 rounded-lg border-2 border-border">
-              <Text size="sm" weight="bold" className="mb-2">{t('billing.references', 'References')}</Text>
-              <div className="space-y-1">
-                <div className="flex justify-between">
-                  <Text size="xs" muted>Reference 1:</Text>
-                  <Text size="xs" weight="medium" className="text-right">{invoice.reference1 || '-'}</Text>
-                </div>
-                <div className="flex justify-between">
-                  <Text size="xs" muted>Reference 2:</Text>
-                  <Text size="xs" weight="medium" className="text-right">{invoice.reference2 || '-'}</Text>
-                </div>
-              </div>
-            </div>
+      <DetailDrawer
+        isOpen={true}
+        onClose={onClose}
+        title={invoice.customerName}
+        subtitle={`#${invoice.id.slice(0, 8).toUpperCase()}`}
+        actions={
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className={getStatusColor(invoice.status)}>
+              {invoice.status}
+            </Badge>
+            {invoice.issuedAt && (
+              <Text size="xs" muted>Issued: {new Date(invoice.issuedAt).toLocaleDateString()}</Text>
+            )}
+            {invoice.dueDate && (
+              <Text size="xs" muted>Due: {new Date(invoice.dueDate).toLocaleDateString()}</Text>
+            )}
           </div>
-          
-          {/* Line Items Section */}
-          <div className="space-y-3">
-            <Text size="sm" weight="bold">{t('billing.lineItems', 'Line Items')}</Text>
-            <div className="space-y-1">
-              {lines.map(line => (
-                <div key={line.id} className="p-2 border-2 border-border rounded-lg">
-                  <div className="flex justify-between items-start mb-1">
-                    <Text size="sm" weight="medium" className="flex-1">{line.description}</Text>
-                    <Text size="sm" weight="bold" className="text-right ml-3">{invoice.currency} {line.lineTotal.toLocaleString()}</Text>
-                  </div>
-                  <div className="flex gap-3 text-xs text-slate-500">
-                    <span>Qty: {line.quantity}</span>
-                    <span>Price: {line.unitPrice.toLocaleString()}</span>
-                    <span>VAT: {line.vatCode}</span>
-                    <span className="ml-auto">VAT: {line.vatAmount.toLocaleString()}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          {/* Totals & VAT Summary Section */}
-          <div className="p-3 bg-muted/30 rounded-lg border-2 border-border space-y-2">
+        }
+      >
+        {/* References */}
+        <div className="p-3 bg-muted/30 rounded-lg border-2 border-border">
+          <Text size="sm" weight="bold" className="mb-2">{t('billing.references', 'References')}</Text>
+          <div className="space-y-1">
             <div className="flex justify-between">
-              <Text size="sm" muted>Subtotal:</Text>
-              <Text size="sm" weight="medium" className="text-right">{invoice.currency} {invoice.subtotal.toLocaleString()}</Text>
+              <Text size="xs" muted>Reference 1:</Text>
+              <Text size="xs" weight="medium" className="text-right">{invoice.reference1 || '-'}</Text>
             </div>
             <div className="flex justify-between">
-              <Text size="sm" muted>VAT Total:</Text>
-              <Text size="sm" weight="medium" className="text-right">{invoice.currency} {invoice.vatTotal.toLocaleString()}</Text>
-            </div>
-            <div className="flex justify-between pt-2 border-t-2 border-border">
-              <Text size="lg" weight="bold">Total:</Text>
-              <Text size="lg" weight="bold" className="text-right">{invoice.currency} {invoice.total.toLocaleString()}</Text>
+              <Text size="xs" muted>Reference 2:</Text>
+              <Text size="xs" weight="medium" className="text-right">{invoice.reference2 || '-'}</Text>
             </div>
           </div>
-          
-          {/* Payment & Export Status Section */}
-          <div className="space-y-3">
-            <div className="p-3 border-2 border-border rounded-lg">
-              <Text size="sm" weight="bold" className="mb-2">{t('billing.payments', 'Payments')}</Text>
-              
-              {payments.length === 0 ? (
-                <Text size="xs" muted>{t('billing.noPayments', 'No payments')}</Text>
-              ) : (
-                <div className="space-y-1 mb-2">
-                  {payments.map(payment => (
-                    <div key={payment.id} className="p-2 bg-muted/30 rounded border-2 border-border">
-                      <div className="flex justify-between items-center">
-                        <Text size="xs" weight="medium">{payment.method} - {payment.status}</Text>
-                        <Text size="xs" weight="bold" className="text-right">{payment.currency} {payment.amount.toLocaleString()}</Text>
-                      </div>
-                      {payment.externalRef && (
-                        <Text size="xs" muted className="mt-1 break-all">{payment.externalRef}</Text>
-                      )}
-                    </div>
-                  ))}
+        </div>
+        
+        {/* Line Items Section */}
+        <div className="space-y-3">
+          <Text size="sm" weight="bold">{t('billing.lineItems', 'Line Items')}</Text>
+          <div className="space-y-1">
+            {lines.map(line => (
+              <div key={line.id} className="p-2 border-2 border-border rounded-lg">
+                <div className="flex justify-between items-start mb-1">
+                  <Text size="sm" weight="medium" className="flex-1">{line.description}</Text>
+                  <Text size="sm" weight="bold" className="text-right ml-3">{invoice.currency} {line.lineTotal.toLocaleString()}</Text>
                 </div>
-              )}
-              
-              {canCreatePayment && invoice.status !== InvoiceStatus.PAID && invoice.status !== InvoiceStatus.VOID && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleCreatePaymentLink}>
-                    <LinkIcon size={14} className="mr-1" />
-                    {t('billing.createPaymentLink', 'Payment Link')}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleInitiateNets}>
-                    <CreditCard size={14} className="mr-1" />
-                    {t('billing.netsTerminal', 'NETS Terminal')}
-                  </Button>
+                <div className="flex gap-3 text-xs text-slate-500">
+                  <span>Qty: {line.quantity}</span>
+                  <span>Price: {line.unitPrice.toLocaleString()}</span>
+                  <span>VAT: {line.vatCode}</span>
+                  <span className="ml-auto">VAT: {line.vatAmount.toLocaleString()}</span>
                 </div>
-              )}
-            </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Totals & VAT Summary Section */}
+        <div className="p-3 bg-muted/30 rounded-lg border-2 border-border space-y-2">
+          <div className="flex justify-between">
+            <Text size="sm" muted>Subtotal:</Text>
+            <Text size="sm" weight="medium" className="text-right">{invoice.currency} {invoice.subtotal.toLocaleString()}</Text>
+          </div>
+          <div className="flex justify-between">
+            <Text size="sm" muted>VAT Total:</Text>
+            <Text size="sm" weight="medium" className="text-right">{invoice.currency} {invoice.vatTotal.toLocaleString()}</Text>
+          </div>
+          <div className="flex justify-between pt-2 border-t-2 border-border">
+            <Text size="lg" weight="bold">Total:</Text>
+            <Text size="lg" weight="bold" className="text-right">{invoice.currency} {invoice.total.toLocaleString()}</Text>
+          </div>
+        </div>
+        
+        {/* Payment & Export Status Section */}
+        <div className="space-y-3">
+          <div className="p-3 border-2 border-border rounded-lg">
+            <Text size="sm" weight="bold" className="mb-2">{t('billing.payments', 'Payments')}</Text>
             
-            <div className="p-3 border-2 border-border rounded-lg">
-              <Text size="sm" weight="bold" className="mb-2">{t('billing.vismaExport', 'Visma Export')}</Text>
-              
-              {latestExport ? (
-                <div className="space-y-1 mb-2">
-                  <div className="p-2 bg-muted/30 rounded border-2 border-border">
+            {payments.length === 0 ? (
+              <Text size="xs" muted>{t('billing.noPayments', 'No payments')}</Text>
+            ) : (
+              <div className="space-y-1 mb-2">
+                {payments.map(payment => (
+                  <div key={payment.id} className="p-2 bg-muted/30 rounded border-2 border-border">
                     <div className="flex justify-between items-center">
-                      <Text size="xs" weight="medium">Status: {latestExport.status}</Text>
-                      {latestExport.status === AccountingExportStatus.FAILED && (
-                        <Button variant="outline" size="sm" onClick={handleRetryExport} disabled={isExporting}>
-                          {t('billing.retry', 'Retry')}
-                        </Button>
-                      )}
+                      <Text size="xs" weight="medium">{payment.method} - {payment.status}</Text>
+                      <Text size="xs" weight="bold" className="text-right">{payment.currency} {payment.amount.toLocaleString()}</Text>
                     </div>
-                    {latestExport.lastError && (
-                      <Text size="xs" className="text-rose-600 mt-1">{latestExport.lastError}</Text>
-                    )}
-                    {latestExport.externalRef && (
-                      <Text size="xs" muted className="mt-1">Ref: {latestExport.externalRef}</Text>
+                    {payment.externalRef && (
+                      <Text size="xs" muted className="mt-1 break-all">{payment.externalRef}</Text>
                     )}
                   </div>
-                </div>
-              ) : (
-                <Text size="xs" muted className="mb-2">{t('billing.notExported', 'Not exported')}</Text>
-              )}
-              
-              {canExport && invoice.status !== InvoiceStatus.DRAFT && invoice.status !== InvoiceStatus.VOID && (
-                <Button
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleExportToVisma}
-                  disabled={isExporting || latestExport?.status === AccountingExportStatus.PENDING}
-                >
-                  {isExporting ? (
-                    <>
-                      <Loader2 size={14} className="mr-1 animate-spin" />
-                      {t('billing.exporting', 'Exporting...')}
-                    </>
-                  ) : (
-                    <>
-                      <Download size={14} className="mr-1" />
-                      {t('billing.exportToVisma', 'Export to Visma')}
-                    </>
-                  )}
+                ))}
+              </div>
+            )}
+            
+            {canCreatePayment && invoice.status !== InvoiceStatus.PAID && invoice.status !== InvoiceStatus.VOID && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleCreatePaymentLink}>
+                  <LinkIcon size={14} className="mr-1" />
+                  {t('billing.createPaymentLink', 'Payment Link')}
                 </Button>
-              )}
-                            </div>
+                <Button variant="outline" size="sm" onClick={handleInitiateNets}>
+                  <CreditCard size={14} className="mr-1" />
+                  {t('billing.netsTerminal', 'NETS Terminal')}
+                </Button>
+              </div>
+            )}
           </div>
           
-          {/* Actions */}
-          {canEdit && (
-            <div className="space-y-2 pt-3 border-t-2 border-border">
-              {invoice.status === InvoiceStatus.DRAFT && (
-                <Button variant="primary" className="w-full" onClick={handleSend}>
-                  {t('billing.sendInvoice', 'Send Invoice')}
-                </Button>
-              )}
-              {invoice.status === InvoiceStatus.SENT && (
-                <Button variant="primary" className="w-full" onClick={handleMarkPaid}>
-                  {t('billing.markPaid', 'Mark as Paid')}
-                </Button>
-              )}
-              {invoice.status !== InvoiceStatus.PAID && invoice.status !== InvoiceStatus.VOID && (
-                <Button variant="destructive" className="w-full" onClick={handleVoid}>
-                  {t('billing.voidInvoice', 'Void Invoice')}
-                </Button>
-              )}
-            </div>
-          )}
-          
-          {/* Metadata */}
-          <div className="pt-3 border-t-2 border-border space-y-1">
-            <Text size="xs" muted>
-              {t('billing.createdBy', 'Created by')}: {invoice.createdByUserId}
-                              </Text>
-            <Text size="xs" muted>
-              {t('billing.createdAt', 'Created')}: {new Date(invoice.createdAt).toLocaleString()}
-                                </Text>
-            <Text size="xs" muted>
-              {t('billing.updatedAt', 'Updated')}: {new Date(invoice.updatedAt).toLocaleString()}
-                              </Text>
-                          </div>
-                            </div>
-                            </div>
+          <div className="p-3 border-2 border-border rounded-lg">
+            <Text size="sm" weight="bold" className="mb-2">{t('billing.vismaExport', 'Visma Export')}</Text>
+            
+            {latestExport ? (
+              <div className="space-y-1 mb-2">
+                <div className="p-2 bg-muted/30 rounded border-2 border-border">
+                  <div className="flex justify-between items-center">
+                    <Text size="xs" weight="medium">Status: {latestExport.status}</Text>
+                    {latestExport.status === AccountingExportStatus.FAILED && (
+                      <Button variant="outline" size="sm" onClick={handleRetryExport} disabled={isExporting}>
+                        {t('billing.retry', 'Retry')}
+                      </Button>
+                    )}
+                  </div>
+                  {latestExport.lastError && (
+                    <Text size="xs" className="text-rose-600 mt-1">{latestExport.lastError}</Text>
+                  )}
+                  {latestExport.externalRef && (
+                    <Text size="xs" muted className="mt-1">Ref: {latestExport.externalRef}</Text>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <Text size="xs" muted className="mb-2">{t('billing.notExported', 'Not exported')}</Text>
+            )}
+            
+            {canExport && invoice.status !== InvoiceStatus.DRAFT && invoice.status !== InvoiceStatus.VOID && (
+              <Button
+                variant="outline" 
+                size="sm"
+                onClick={handleExportToVisma}
+                disabled={isExporting || latestExport?.status === AccountingExportStatus.PENDING}
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 size={14} className="mr-1 animate-spin" />
+                    {t('billing.exporting', 'Exporting...')}
+                  </>
+                ) : (
+                  <>
+                    <Download size={14} className="mr-1" />
+                    {t('billing.exportToVisma', 'Export to Visma')}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+        
+        {/* Actions */}
+        {canEdit && (
+          <div className="space-y-2 pt-3 border-t-2 border-border">
+            {invoice.status === InvoiceStatus.DRAFT && (
+              <Button variant="primary" className="w-full" onClick={handleSend}>
+                {t('billing.sendInvoice', 'Send Invoice')}
+              </Button>
+            )}
+            {invoice.status === InvoiceStatus.SENT && (
+              <Button variant="primary" className="w-full" onClick={handleMarkPaid}>
+                {t('billing.markPaid', 'Mark as Paid')}
+              </Button>
+            )}
+            {invoice.status !== InvoiceStatus.PAID && invoice.status !== InvoiceStatus.VOID && (
+              <Button variant="destructive" className="w-full" onClick={handleVoid}>
+                {t('billing.voidInvoice', 'Void Invoice')}
+              </Button>
+            )}
+          </div>
+        )}
+        
+        {/* Metadata */}
+        <div className="pt-3 border-t-2 border-border space-y-1">
+          <Text size="xs" muted>
+            {t('billing.createdBy', 'Created by')}: {invoice.createdByUserId}
+          </Text>
+          <Text size="xs" muted>
+            {t('billing.createdAt', 'Created')}: {new Date(invoice.createdAt).toLocaleString()}
+          </Text>
+          <Text size="xs" muted>
+            {t('billing.updatedAt', 'Updated')}: {new Date(invoice.updatedAt).toLocaleString()}
+          </Text>
+        </div>
+      </DetailDrawer>
       
       {/* Payment Link Modal */}
       {showPaymentLinkModal && payments.length > 0 && (
@@ -4358,22 +4584,13 @@ const TicketDetailDrawer: React.FC<{
 
   return (
     <>
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-full sm:w-[600px] bg-card border-l border-border shadow-2xl z-50 overflow-y-auto">
-        <div className="p-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b-2 border-border/80/70 pb-4">
-            <div>
-              <Text size="sm" weight="bold" className="text-slate-400 font-mono">{ticket.id}</Text>
-              <Text size="xl" weight="bold" className="text-slate-900">{ticket.title}</Text>
-            </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X size={20} />
-                      </Button>
-          </div>
-          
-          {/* Status & Severity */}
-          <div className="flex gap-3">
+      <DetailDrawer
+        isOpen={true}
+        onClose={onClose}
+        title={ticket.title}
+        subtitle={`#${ticket.id.slice(0, 8).toUpperCase()}`}
+        actions={
+          <div className="flex gap-2">
             <Badge variant="outline" className={getSeverityColor(ticket.severity)}>
               {ticket.severity}
             </Badge>
@@ -4384,154 +4601,154 @@ const TicketDetailDrawer: React.FC<{
               {ticket.category.replace('_', ' ')}
             </Badge>
           </div>
-          
-          {/* Unit Info */}
-          <div className="p-4 bg-muted/30 rounded-lg border border-border/70">
-            <div className="flex items-center gap-2 mb-2">
-              <Bed size={16} className="text-slate-400" />
-              <Text size="lg" weight="bold">{t('rooms.unit', 'Unit')} {room?.number || ticket.unitId}</Text>
-              {room && <Text size="sm" muted>({room.type})</Text>}
+        }
+      >
+        {/* Unit Info */}
+        <div className="p-4 bg-muted/30 rounded-lg border border-border/70">
+          <div className="flex items-center gap-2 mb-2">
+            <Bed size={16} className="text-slate-400" />
+            <Text size="lg" weight="bold">{t('rooms.unit', 'Unit')} {room?.number || ticket.unitId}</Text>
+            {room && <Text size="sm" muted>({room.type})</Text>}
+          </div>
+          {isBlocked && (
+            <div className="mt-2 p-2 bg-rose-50 rounded border border-rose-200">
+              <Text size="sm" weight="bold" className="text-rose-700">
+                {t('rooms.outOfService', 'OUT OF SERVICE')}
+              </Text>
+              {room.outOfServiceReason && (
+                <Text size="xs" className="text-rose-600 mt-1">Reason: {room.outOfServiceReason}</Text>
+              )}
             </div>
-            {isBlocked && (
-              <div className="mt-2 p-2 bg-rose-50 rounded border border-rose-200">
-                <Text size="sm" weight="bold" className="text-rose-700">
-                  {t('rooms.outOfService', 'OUT OF SERVICE')}
-                </Text>
-                {room.outOfServiceReason && (
-                  <Text size="xs" className="text-rose-600 mt-1">Reason: {room.outOfServiceReason}</Text>
-                )}
-                  </div>
+          )}
+        </div>
+        
+        {/* Description */}
+        <div>
+          <Text size="sm" weight="bold" className="mb-2">{t('maintenance.description', 'Description')}</Text>
+          <Text size="sm" className="text-slate-700 whitespace-pre-wrap">{ticket.description}</Text>
+        </div>
+        
+        {/* Attachments */}
+        <div>
+          <Text size="sm" weight="bold" className="mb-2">{t('maintenance.attachments', 'Attachments')}</Text>
+          {attachments.length === 0 ? (
+            <Text size="xs" muted>{t('maintenance.noAttachments', 'No attachments')}</Text>
+          ) : (
+            <div className="space-y-2">
+              {attachments.map(att => (
+                <div key={att.id} className="flex items-center gap-2 p-2 border border-border/70 rounded">
+                  <FileText size={16} className="text-slate-400" />
+                  <Text size="sm" className="flex-1">{att.fileName}</Text>
+                  <Text size="xs" muted>{(att.size / 1024).toFixed(1)} KB</Text>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Blocking Status */}
+        <div className="p-4 border border-border/70 rounded-lg">
+          <Text size="sm" weight="bold" className="mb-3">{t('maintenance.blockingStatus', 'Blocking Status')}</Text>
+          {isBlocked ? (
+            <div className="space-y-2">
+              <Text size="sm">{t('maintenance.unitIsBlocked', 'Unit is currently blocked')}</Text>
+              {room.outOfServiceReason && (
+                <Text size="xs" muted>Reason: {room.outOfServiceReason}</Text>
+              )}
+              {room.outOfServiceNote && (
+                <Text size="xs" muted>Note: {room.outOfServiceNote}</Text>
+              )}
+              {room.expectedReturnDate && (
+                <Text size="xs" muted>Expected return: {room.expectedReturnDate}</Text>
+              )}
+              {canBlock && (
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowRestoreModal(true)}>
+                  {t('rooms.restoreUnit', 'Restore Unit')}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div>
+              <Text size="sm" className="mb-3">{t('maintenance.unitNotBlocked', 'Unit is not blocked')}</Text>
+              {canBlock && (
+                <Button variant="destructive" size="sm" onClick={() => setShowBlockModal(true)}>
+                  {t('rooms.blockUnit', 'Block Unit')}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Impact */}
+        {impact && (
+          <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <Text size="sm" weight="bold" className="mb-2 text-amber-900">{t('maintenance.impact', 'Impact')}</Text>
+            <Text size="sm" className="text-amber-800">
+              {impact.futureReservationsCount > 0 
+                ? `${impact.futureReservationsCount} ${t('maintenance.futureReservations', 'future reservation(s) affected')}`
+                : t('maintenance.noFutureReservations', 'No future reservations affected')
+              }
+            </Text>
+            {impact.nextArrival && (
+              <Text size="xs" className="text-amber-700 mt-1">
+                Next arrival: {impact.nextArrival.date} at {impact.nextArrival.time}
+              </Text>
+            )}
+            {impact.isOccupied && (
+              <Text size="xs" weight="bold" className="text-amber-900 mt-2">
+                {t('maintenance.currentlyOccupied', '⚠️ Unit is currently occupied')}
+              </Text>
             )}
           </div>
-          
-          {/* Description */}
-          <div>
-            <Text size="sm" weight="bold" className="mb-2">{t('maintenance.description', 'Description')}</Text>
-            <Text size="sm" className="text-slate-700 whitespace-pre-wrap">{ticket.description}</Text>
-          </div>
-          
-          {/* Attachments */}
-          <div>
-            <Text size="sm" weight="bold" className="mb-2">{t('maintenance.attachments', 'Attachments')}</Text>
-            {attachments.length === 0 ? (
-              <Text size="xs" muted>{t('maintenance.noAttachments', 'No attachments')}</Text>
-            ) : (
-              <div className="space-y-2">
-                {attachments.map(att => (
-                  <div key={att.id} className="flex items-center gap-2 p-2 border border-border/70 rounded">
-                    <FileText size={16} className="text-slate-400" />
-                    <Text size="sm" className="flex-1">{att.fileName}</Text>
-                    <Text size="xs" muted>{(att.size / 1024).toFixed(1)} KB</Text>
-                  </div>
+        )}
+        
+        {/* Actions */}
+        {canUpdate && (
+          <div className="space-y-3 pt-4 border-t-2 border-border/80/70">
+            <div>
+              <Text size="sm" weight="bold" className="mb-2">{t('maintenance.changeStatus', 'Change Status')}</Text>
+              <div className="flex flex-wrap gap-2">
+                {Object.values(MaintenanceTicketStatus).map(status => (
+                  <Button
+                    key={status}
+                    size="sm"
+                    variant={ticket.status === status ? 'primary' : 'outline'}
+                    onClick={() => handleStatusChange(status)}
+                    disabled={ticket.status === status}
+                  >
+                    {status.replace('_', ' ')}
+                  </Button>
                 ))}
-        </div>
-            )}
-            </div>
-          
-          {/* Blocking Status */}
-          <div className="p-4 border border-border/70 rounded-lg">
-            <Text size="sm" weight="bold" className="mb-3">{t('maintenance.blockingStatus', 'Blocking Status')}</Text>
-            {isBlocked ? (
-              <div className="space-y-2">
-                <Text size="sm">{t('maintenance.unitIsBlocked', 'Unit is currently blocked')}</Text>
-                {room.outOfServiceReason && (
-                  <Text size="xs" muted>Reason: {room.outOfServiceReason}</Text>
-                )}
-                {room.outOfServiceNote && (
-                  <Text size="xs" muted>Note: {room.outOfServiceNote}</Text>
-                )}
-                {room.expectedReturnDate && (
-                  <Text size="xs" muted>Expected return: {room.expectedReturnDate}</Text>
-                )}
-                {canBlock && (
-                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowRestoreModal(true)}>
-                    {t('rooms.restoreUnit', 'Restore Unit')}
-                  </Button>
-                )}
-            </div>
-            ) : (
-              <div>
-                <Text size="sm" className="mb-3">{t('maintenance.unitNotBlocked', 'Unit is not blocked')}</Text>
-                {canBlock && (
-                  <Button variant="destructive" size="sm" onClick={() => setShowBlockModal(true)}>
-                    {t('rooms.blockUnit', 'Block Unit')}
-                  </Button>
-                )}
-          </div>
-            )}
-          </div>
-          
-          {/* Impact */}
-          {impact && (
-            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-              <Text size="sm" weight="bold" className="mb-2 text-amber-900">{t('maintenance.impact', 'Impact')}</Text>
-              <Text size="sm" className="text-amber-800">
-                {impact.futureReservationsCount > 0 
-                  ? `${impact.futureReservationsCount} ${t('maintenance.futureReservations', 'future reservation(s) affected')}`
-                  : t('maintenance.noFutureReservations', 'No future reservations affected')
-                }
-              </Text>
-              {impact.nextArrival && (
-                <Text size="xs" className="text-amber-700 mt-1">
-                  Next arrival: {impact.nextArrival.date} at {impact.nextArrival.time}
-                </Text>
-              )}
-              {impact.isOccupied && (
-                <Text size="xs" weight="bold" className="text-amber-900 mt-2">
-                  {t('maintenance.currentlyOccupied', '⚠️ Unit is currently occupied')}
-                </Text>
-              )}
-            </div>
-          )}
-          
-          {/* Actions */}
-          {canUpdate && (
-            <div className="space-y-3 pt-4 border-t-2 border-border/80/70">
-              <div>
-                <Text size="sm" weight="bold" className="mb-2">{t('maintenance.changeStatus', 'Change Status')}</Text>
-                <div className="flex flex-wrap gap-2">
-                  {Object.values(MaintenanceTicketStatus).map(status => (
-                    <Button
-                      key={status}
-                      size="sm"
-                      variant={ticket.status === status ? 'primary' : 'outline'}
-                      onClick={() => handleStatusChange(status)}
-                      disabled={ticket.status === status}
-                    >
-                      {status.replace('_', ' ')}
-                    </Button>
-                  ))}
-    </div>
               </div>
-              
-              <Button variant="outline" size="sm" onClick={handleAssign}>
-                {ticket.assignedToUserId 
-                  ? `${t('maintenance.assignedTo', 'Assigned to')}: ${ticket.assignedToUserId}`
-                  : t('maintenance.assign', 'Assign')
-                }
-              </Button>
             </div>
-          )}
-          
-          {/* Metadata */}
-          <div className="pt-4 border-t-2 border-border/80/70 space-y-1">
-            <Text size="xs" muted>
-              {t('maintenance.reportedBy', 'Reported by')}: {ticket.reportedByUserId}
-            </Text>
-            <Text size="xs" muted>
-              {t('maintenance.requestedAt', 'Requested')}: {new Date(ticket.requestedAt).toLocaleString()}
-            </Text>
-            <Text size="xs" muted>
-              {t('maintenance.updatedAt', 'Updated')}: {new Date(ticket.updatedAt).toLocaleString()}
-            </Text>
-            {ticket.resolvedAt && (
-              <Text size="xs" muted>
-                {t('maintenance.resolvedAt', 'Resolved')}: {new Date(ticket.resolvedAt).toLocaleString()}
-              </Text>
-            )}
+            
+            <Button variant="outline" size="sm" onClick={handleAssign}>
+              {ticket.assignedToUserId 
+                ? `${t('maintenance.assignedTo', 'Assigned to')}: ${ticket.assignedToUserId}`
+                : t('maintenance.assign', 'Assign')
+              }
+            </Button>
           </div>
+        )}
+        
+        {/* Metadata */}
+        <div className="pt-4 border-t-2 border-border/80/70 space-y-1">
+          <Text size="xs" muted>
+            {t('maintenance.reportedBy', 'Reported by')}: {ticket.reportedByUserId}
+          </Text>
+          <Text size="xs" muted>
+            {t('maintenance.requestedAt', 'Requested')}: {new Date(ticket.requestedAt).toLocaleString()}
+          </Text>
+          <Text size="xs" muted>
+            {t('maintenance.updatedAt', 'Updated')}: {new Date(ticket.updatedAt).toLocaleString()}
+          </Text>
+          {ticket.resolvedAt && (
+            <Text size="xs" muted>
+              {t('maintenance.resolvedAt', 'Resolved')}: {new Date(ticket.resolvedAt).toLocaleString()}
+            </Text>
+          )}
         </div>
-      </div>
+      </DetailDrawer>
       
       {/* Block Unit Modal */}
       {showBlockModal && (

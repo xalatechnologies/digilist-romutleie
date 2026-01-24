@@ -37,11 +37,11 @@ export const localizeRoomOccupancy = (t: TFunction, occupancy: string): string =
  */
 export const localizeBookingStatus = (t: TFunction, status: string): string => {
   const statusMap: Record<string, string> = {
-    'DRAFT': t('bookings.status.draft', 'Draft'),
-    'CONFIRMED': t('bookings.status.confirmed', 'Confirmed'),
-    'CHECKED_IN': t('bookings.status.checkedIn', 'Checked In'),
-    'CHECKED_OUT': t('bookings.status.checkedOut', 'Checked Out'),
-    'CANCELLED': t('bookings.status.cancelled', 'Cancelled'),
+    'DRAFT': t('bookings.statusValues.draft', 'Draft'),
+    'CONFIRMED': t('bookings.statusValues.confirmed', 'Confirmed'),
+    'CHECKED_IN': t('bookings.statusValues.checkedIn', 'Checked In'),
+    'CHECKED_OUT': t('bookings.statusValues.checkedOut', 'Checked Out'),
+    'CANCELLED': t('bookings.statusValues.cancelled', 'Cancelled'),
   };
   return statusMap[status] || status;
 };
@@ -51,10 +51,10 @@ export const localizeBookingStatus = (t: TFunction, status: string): string => {
  */
 export const localizeInvoiceStatus = (t: TFunction, status: string): string => {
   const statusMap: Record<string, string> = {
-    'DRAFT': t('billing.status.draft', 'Draft'),
-    'SENT': t('billing.status.sent', 'Sent'),
-    'PAID': t('billing.status.paid', 'Paid'),
-    'VOID': t('billing.status.void', 'Void'),
+    'DRAFT': t('billing.statusValues.draft', 'Draft'),
+    'SENT': t('billing.statusValues.sent', 'Sent'),
+    'PAID': t('billing.statusValues.paid', 'Paid'),
+    'VOID': t('billing.statusValues.void', 'Void'),
   };
   return statusMap[status] || status;
 };
