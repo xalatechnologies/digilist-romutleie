@@ -1822,7 +1822,6 @@ class StoreService {
     return room;
   }
 
-  getLogs() { return this.auditLogs; }
   getAuditSummaries() { return this.auditSummaries; }
   runNightAudit(userId: string = 'Staff') {
     const today = new Date().toISOString().split('T')[0];
