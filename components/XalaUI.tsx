@@ -522,14 +522,14 @@ export const DetailDrawer: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex justify-end pointer-events-none">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4">
       <div 
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in transition-all pointer-events-auto"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-2xl bg-background h-full shadow-2xl border-l border-border pointer-events-auto flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-3xl max-h-[90vh] bg-background rounded-lg shadow-2xl border border-border pointer-events-auto flex flex-col animate-in zoom-in-95 fade-in duration-300">
         {/* Header */}
-        <div className="flex flex-col gap-4 p-6 border-b border-border bg-white/50 backdrop-blur-sm">
+        <div className="flex flex-col gap-4 p-6 border-b border-border bg-white/50 backdrop-blur-sm rounded-t-lg">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <Text size="xl" weight="bold">{title}</Text>
