@@ -15,15 +15,44 @@ import { auditService } from './auditService';
 import { availabilityService } from './availabilityService';
 
 const INITIAL_ROOMS: IRoom[] = [
+  // Floor 1 - Singles
   { id: '1', number: '101', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
   { id: '2', number: '102', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
+  { id: '6', number: '103', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.DIRTY },
+  { id: '7', number: '104', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
+  { id: '8', number: '105', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
+  { id: '9', number: '106', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
+  { id: '10', number: '107', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.DIRTY },
+  { id: '11', number: '108', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
+  
+  // Floor 2 - Doubles
   { id: '3', number: '201', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.DIRTY },
+  { id: '12', number: '202', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.CLEAN },
+  { id: '13', number: '203', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.CLEAN },
+  { id: '14', number: '204', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.CLEAN },
+  { id: '15', number: '205', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.DIRTY },
+  { id: '16', number: '206', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.CLEAN },
+  { id: '17', number: '207', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.CLEAN },
+  { id: '18', number: '208', type: RoomType.DOUBLE, capacity: 2, floor: 2, pricePerNight: 1450, status: RoomStatus.CLEAN },
+  
+  // Floor 3 - Apartments
   { id: '4', number: '301', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.OUT_OF_SERVICE, outOfServiceReason: 'Plumbing issue' },
   { id: '5', number: '302', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.CLEAN },
-  { id: '6', number: '103', type: RoomType.SINGLE, capacity: 1, floor: 1, pricePerNight: 950, status: RoomStatus.CLEAN },
+  { id: '19', number: '303', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.CLEAN },
+  { id: '20', number: '304', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.CLEAN },
+  { id: '21', number: '305', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.DIRTY },
+  { id: '22', number: '306', type: RoomType.APARTMENT, capacity: 4, floor: 3, pricePerNight: 2800, status: RoomStatus.CLEAN },
 ];
 
+// Helper to get dates relative to today
+const getDate = (daysOffset: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysOffset);
+  return date.toISOString().split('T')[0];
+};
+
 const INITIAL_BOOKINGS: IBooking[] = [
+  // Past bookings (checked out)
   { 
     id: 'b1', 
     customerType: CustomerType.COMPANY,
@@ -35,17 +64,168 @@ const INITIAL_BOOKINGS: IBooking[] = [
     orgNumber: '123-456',
     guestCount: 2, 
     roomId: '3', 
-    startDate: '2025-05-10', 
-    endDate: '2025-05-15', 
-    status: BookingStatus.CONFIRMED, 
+    startDate: getDate(-10), 
+    endDate: getDate(-5), 
+    status: BookingStatus.CHECKED_OUT, 
+    checkInTime: `${getDate(-10)}T15:00:00`,
+    checkOutTime: `${getDate(-5)}T11:00:00`,
     totalPrice: 7250, 
     reference1: 'PROJ-X', 
     reference2: 'DEPT-4',
     bookingMode: 'Group',
+    groupName: 'Space Mission 2025',
     paymentMethod: PaymentMethod.INVOICE,
     cardGuaranteeRequired: false,
     extraFees: []
-  }
+  },
+  { 
+    id: 'b2', 
+    customerType: CustomerType.PERSON,
+    customerName: 'John Smith', 
+    customerEmail: 'john.smith@email.com', 
+    customerPhone: '+47 123 45 678',
+    billingAddress: 'Oslo, Norway',
+    guestCount: 1, 
+    roomId: '1', 
+    startDate: getDate(-7), 
+    endDate: getDate(-3), 
+    status: BookingStatus.CHECKED_OUT, 
+    checkInTime: `${getDate(-7)}T14:30:00`,
+    checkOutTime: `${getDate(-3)}T10:45:00`,
+    totalPrice: 3800, 
+    bookingMode: 'Individual',
+    paymentMethod: PaymentMethod.PREPAYMENT,
+    cardGuaranteeRequired: true,
+    extraFees: []
+  },
+  
+  // Current bookings (checked in)
+  { 
+    id: 'b3', 
+    customerType: CustomerType.COMPANY,
+    customerName: 'Sarah Johnson', 
+    companyName: 'TechCorp AS',
+    customerEmail: 'sarah@techcorp.no', 
+    customerPhone: '+47 987 65 432',
+    billingAddress: 'Bergen, Norway',
+    orgNumber: '987654321',
+    guestCount: 2, 
+    roomId: '12', 
+    startDate: getDate(-2), 
+    endDate: getDate(3), 
+    status: BookingStatus.CHECKED_IN, 
+    checkInTime: `${getDate(-2)}T16:00:00`,
+    totalPrice: 7250, 
+    reference1: 'TC-2025-001',
+    bookingMode: 'Individual',
+    paymentMethod: PaymentMethod.INVOICE,
+    cardGuaranteeRequired: false,
+    extraFees: [{ id: 'f1', description: 'Late check-in fee', amount: 200, vatCode: 15 }]
+  },
+  { 
+    id: 'b4', 
+    customerType: CustomerType.PERSON,
+    customerName: 'Maria Garcia', 
+    customerEmail: 'maria.garcia@email.com', 
+    customerPhone: '+34 600 123 456',
+    billingAddress: 'Madrid, Spain',
+    guestCount: 4, 
+    roomId: '5', 
+    startDate: getDate(-1), 
+    endDate: getDate(4), 
+    status: BookingStatus.CHECKED_IN, 
+    checkInTime: `${getDate(-1)}T15:30:00`,
+    totalPrice: 14000, 
+    bookingMode: 'Individual',
+    paymentMethod: PaymentMethod.PAYMENT_LINK,
+    cardGuaranteeRequired: true,
+    extraFees: []
+  },
+  
+  // Upcoming bookings (confirmed)
+  { 
+    id: 'b5', 
+    customerType: CustomerType.COMPANY,
+    customerName: 'Michael Chen', 
+    companyName: 'Global Solutions Ltd',
+    customerEmail: 'm.chen@globalsolutions.com', 
+    customerPhone: '+1-555-0100',
+    billingAddress: 'New York, NY',
+    orgNumber: 'US-123456',
+    guestCount: 3, 
+    roomId: '19', 
+    startDate: getDate(2), 
+    endDate: getDate(7), 
+    status: BookingStatus.CONFIRMED, 
+    totalPrice: 14000, 
+    reference1: 'GS-2025-Q1',
+    reference2: 'CONF-001',
+    bookingMode: 'Group',
+    groupName: 'Q1 Conference 2025',
+    paymentMethod: PaymentMethod.INVOICE,
+    cardGuaranteeRequired: false,
+    extraFees: []
+  },
+  { 
+    id: 'b6', 
+    customerType: CustomerType.PERSON,
+    customerName: 'Emma Wilson', 
+    customerEmail: 'emma.wilson@email.com', 
+    customerPhone: '+44 20 1234 5678',
+    billingAddress: 'London, UK',
+    guestCount: 1, 
+    roomId: '2', 
+    startDate: getDate(5), 
+    endDate: getDate(8), 
+    status: BookingStatus.CONFIRMED, 
+    totalPrice: 2850, 
+    bookingMode: 'Individual',
+    paymentMethod: PaymentMethod.PREPAYMENT,
+    cardGuaranteeRequired: true,
+    extraFees: []
+  },
+  { 
+    id: 'b7', 
+    customerType: CustomerType.COMPANY,
+    customerName: 'Anders Hansen', 
+    companyName: 'Nordic Industries',
+    customerEmail: 'anders@nordic.no', 
+    customerPhone: '+47 22 11 22 33',
+    billingAddress: 'Trondheim, Norway',
+    orgNumber: '123456789',
+    guestCount: 2, 
+    roomId: '13', 
+    startDate: getDate(10), 
+    endDate: getDate(15), 
+    status: BookingStatus.CONFIRMED, 
+    totalPrice: 7250, 
+    reference1: 'NI-2025-042',
+    bookingMode: 'Group',
+    groupName: 'Nordic Summit 2025',
+    paymentMethod: PaymentMethod.INVOICE,
+    cardGuaranteeRequired: false,
+    extraFees: []
+  },
+  
+  // Draft bookings
+  { 
+    id: 'b8', 
+    customerType: CustomerType.PERSON,
+    customerName: 'David Lee', 
+    customerEmail: 'david.lee@email.com', 
+    customerPhone: '+1-555-0200',
+    billingAddress: 'San Francisco, CA',
+    guestCount: 2, 
+    roomId: '14', 
+    startDate: getDate(20), 
+    endDate: getDate(25), 
+    status: BookingStatus.DRAFT, 
+    totalPrice: 7250, 
+    bookingMode: 'Individual',
+    paymentMethod: PaymentMethod.INVOICE,
+    cardGuaranteeRequired: false,
+    extraFees: []
+  },
 ];
 
 const INITIAL_KITCHEN_ITEMS: IKitchenItem[] = [
@@ -89,19 +269,363 @@ const INITIAL_KITCHEN_ITEMS: IKitchenItem[] = [
     createdAt: new Date(),
     updatedAt: new Date()
   },
+  { 
+    id: 'k5', 
+    name: 'Room Service Breakfast', 
+    description: 'Full breakfast served in room',
+    unitPrice: 180, 
+    vatCode: VatCode.VAT_15, 
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  { 
+    id: 'k6', 
+    name: 'Business Lunch', 
+    description: 'Three-course business lunch',
+    unitPrice: 320, 
+    vatCode: VatCode.VAT_15, 
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  { 
+    id: 'k7', 
+    name: 'Vegetarian Option', 
+    description: 'Vegetarian meal option',
+    unitPrice: 280, 
+    vatCode: VatCode.VAT_15, 
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  { 
+    id: 'k8', 
+    name: 'Wine Selection', 
+    description: 'Premium wine selection',
+    unitPrice: 450, 
+    vatCode: VatCode.VAT_25, 
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  { 
+    id: 'k9', 
+    name: 'Minibar Refill', 
+    description: 'Standard minibar refill',
+    unitPrice: 250, 
+    vatCode: VatCode.VAT_25, 
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  { 
+    id: 'k10', 
+    name: 'Afternoon Tea', 
+    description: 'Traditional afternoon tea service',
+    unitPrice: 195, 
+    vatCode: VatCode.VAT_15, 
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  { 
+    id: 'k11', 
+    name: 'Late Night Snack', 
+    description: 'Light snack for late arrivals',
+    unitPrice: 95, 
+    vatCode: VatCode.VAT_15, 
+    isActive: false,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+];
+
+const INITIAL_MEAL_ORDERS: IMealOrder[] = [
+  {
+    id: 'm1',
+    orderDateTime: `${getDate(0)}T08:00:00`,
+    quantity: 2,
+    kitchenItemId: 'k1',
+    servingLocation: 'Dining Room',
+    referenceText: 'Breakfast for room 201',
+    status: MealOrderStatus.DELIVERED,
+    bookingGroupId: 'Space Mission 2025',
+    createdByUserId: 'staff-1',
+    createdAt: new Date(getDate(-1)),
+    updatedAt: new Date(getDate(0))
+  },
+  {
+    id: 'm2',
+    orderDateTime: `${getDate(0)}T12:30:00`,
+    quantity: 1,
+    kitchenItemId: 'k2',
+    servingLocation: 'Room 12',
+    referenceText: 'Lunch for TechCorp guest',
+    status: MealOrderStatus.READY,
+    reservationId: 'b3',
+    createdByUserId: 'staff-1',
+    createdAt: new Date(getDate(0)),
+    updatedAt: new Date(getDate(0))
+  },
+  {
+    id: 'm3',
+    orderDateTime: `${getDate(0)}T19:00:00`,
+    quantity: 2,
+    kitchenItemId: 'k3',
+    servingLocation: 'Dining Room',
+    referenceText: 'Dinner for room 302',
+    status: MealOrderStatus.IN_PREP,
+    reservationId: 'b4',
+    createdByUserId: 'staff-1',
+    createdAt: new Date(getDate(0)),
+    updatedAt: new Date(getDate(0))
+  },
+  {
+    id: 'm4',
+    orderDateTime: `${getDate(1)}T08:00:00`,
+    quantity: 4,
+    kitchenItemId: 'k1',
+    servingLocation: 'Dining Room',
+    referenceText: 'Group breakfast',
+    status: MealOrderStatus.PLANNED,
+    bookingGroupId: 'Q1 Conference 2025',
+    createdByUserId: 'staff-1',
+    createdAt: new Date(getDate(0)),
+    updatedAt: new Date(getDate(0))
+  },
+  {
+    id: 'm5',
+    orderDateTime: `${getDate(1)}T15:00:00`,
+    quantity: 1,
+    kitchenItemId: 'k10',
+    servingLocation: 'Room 202',
+    referenceText: 'Afternoon tea',
+    status: MealOrderStatus.PLANNED,
+    reservationId: 'b5',
+    createdByUserId: 'staff-1',
+    createdAt: new Date(getDate(0)),
+    updatedAt: new Date(getDate(0))
+  },
+];
+
+const INITIAL_HOUSEKEEPING_TASKS: IHousekeepingTask[] = [
+  { id: 'h1', roomId: '3', type: 'Turnover', status: 'Pending', dueDate: getDate(0) },
+  { id: 'h2', roomId: '6', type: 'Turnover', status: 'In Progress', assignedTo: 'staff-2', dueDate: getDate(0) },
+  { id: 'h3', roomId: '7', type: 'Turnover', status: 'Pending', dueDate: getDate(0) },
+  { id: 'h4', roomId: '15', type: 'Turnover', status: 'Pending', dueDate: getDate(0) },
+  { id: 'h5', roomId: '21', type: 'Turnover', status: 'Pending', dueDate: getDate(0) },
+  { id: 'h6', roomId: '12', type: 'Stayover', status: 'Pending', dueDate: getDate(1) },
+  { id: 'h7', roomId: '5', type: 'Stayover', status: 'Pending', dueDate: getDate(1) },
+  { id: 'h8', roomId: '22', type: 'Deep Clean', status: 'Pending', dueDate: getDate(3) },
+];
+
+const INITIAL_MAINTENANCE_TICKETS: IMaintenanceTicket[] = [
+  {
+    id: 't1',
+    unitId: '4',
+    title: 'Leaking Faucet',
+    category: MaintenanceCategory.PLUMBING,
+    severity: MaintenanceSeverity.HIGH,
+    description: 'Leaking faucet in bathroom, water damage to floor',
+    status: MaintenanceTicketStatus.IN_PROGRESS,
+    reportedByUserId: 'staff-1',
+    assignedToUserId: 'maintenance-1',
+    requestedAt: new Date(getDate(-5)),
+    updatedAt: new Date(getDate(-2)),
+    requiresBlocking: true,
+    blockReason: BlockReason.MAINTENANCE,
+    blockedAt: new Date(getDate(-5)),
+    blockedByUserId: 'staff-1'
+  },
+  {
+    id: 't2',
+    unitId: '1',
+    title: 'Electrical Issue',
+    category: MaintenanceCategory.ELECTRICAL,
+    severity: MaintenanceSeverity.MEDIUM,
+    description: 'Light switch not working properly in bedroom',
+    status: MaintenanceTicketStatus.OPEN,
+    reportedByUserId: 'staff-2',
+    requestedAt: new Date(getDate(-1)),
+    updatedAt: new Date(getDate(-1)),
+    requiresBlocking: false
+  },
+  {
+    id: 't3',
+    unitId: '16',
+    title: 'HVAC Noise',
+    category: MaintenanceCategory.HVAC,
+    severity: MaintenanceSeverity.LOW,
+    description: 'AC unit making unusual noise',
+    status: MaintenanceTicketStatus.TRIAGED,
+    reportedByUserId: 'staff-1',
+    requestedAt: new Date(getDate(-3)),
+    updatedAt: new Date(getDate(-2)),
+    requiresBlocking: false
+  },
+  {
+    id: 't4',
+    unitId: '8',
+    title: 'Window Damage',
+    category: MaintenanceCategory.DAMAGE,
+    severity: MaintenanceSeverity.CRITICAL,
+    description: 'Window frame damaged, safety concern',
+    status: MaintenanceTicketStatus.OPEN,
+    reportedByUserId: 'staff-3',
+    requestedAt: new Date(getDate(0)),
+    updatedAt: new Date(getDate(0)),
+    requiresBlocking: true,
+    blockReason: BlockReason.DAMAGE
+  },
+];
+
+const INITIAL_INVOICES: IInvoice[] = [
+  {
+    id: 'inv1',
+    bookingGroupId: 'Space Mission 2025',
+    customerId: 'c1',
+    customerName: 'NASA Operations',
+    status: InvoiceStatus.SENT,
+    reference1: 'PROJ-X',
+    reference2: 'DEPT-4',
+    currency: 'NOK',
+    subtotal: 6304.35,
+    vatTotal: 945.65,
+    total: 7250,
+    issuedAt: new Date(getDate(-5)),
+    dueDate: new Date(getDate(25)),
+    createdByUserId: 'staff-1',
+    createdAt: new Date(getDate(-5)),
+    updatedAt: new Date(getDate(-5))
+  },
+  {
+    id: 'inv2',
+    customerId: 'c2',
+    customerName: 'John Smith',
+    status: InvoiceStatus.PAID,
+    reference1: 'IND-2025-001',
+    reference2: 'BOOKING-b2',
+    currency: 'NOK',
+    subtotal: 3304.35,
+    vatTotal: 495.65,
+    total: 3800,
+    issuedAt: new Date(getDate(-3)),
+    dueDate: new Date(getDate(27)),
+    createdByUserId: 'staff-1',
+    createdAt: new Date(getDate(-3)),
+    updatedAt: new Date(getDate(-2))
+  },
+  {
+    id: 'inv3',
+    customerId: 'c3',
+    customerName: 'TechCorp AS',
+    status: InvoiceStatus.DRAFT,
+    reference1: 'TC-2025-001',
+    reference2: 'BOOKING-b3',
+    currency: 'NOK',
+    subtotal: 6304.35,
+    vatTotal: 945.65,
+    total: 7250,
+    createdByUserId: 'staff-1',
+    createdAt: new Date(getDate(0)),
+    updatedAt: new Date(getDate(0))
+  },
+];
+
+const INITIAL_PAYMENTS: IPayment[] = [
+  {
+    id: 'p1',
+    invoiceId: 'inv2',
+    amount: 3800,
+    method: PaymentMethodEnum.PAYMENT_LINK,
+    status: PaymentStatus.SUCCEEDED,
+    currency: 'NOK',
+    externalRef: 'PAY-2025-001',
+    createdAt: new Date(getDate(-3)),
+    updatedAt: new Date(getDate(-2))
+  },
+  {
+    id: 'p2',
+    invoiceId: 'inv1',
+    amount: 2000,
+    method: PaymentMethodEnum.PAYMENT_LINK,
+    status: PaymentStatus.PENDING,
+    currency: 'NOK',
+    externalRef: 'https://pay.example.com/link/abc123',
+    createdAt: new Date(getDate(-1)),
+    updatedAt: new Date(getDate(-1))
+  },
 ];
 
 class StoreService {
   private rooms: IRoom[] = [...INITIAL_ROOMS];
   private bookings: IBooking[] = [...INITIAL_BOOKINGS];
   private kitchenItems: IKitchenItem[] = [...INITIAL_KITCHEN_ITEMS];
-  private meals: IMealOrder[] = [];
-  private housekeepingTasks: IHousekeepingTask[] = [];
-  private tickets: IMaintenanceTicket[] = [];
+  private meals: IMealOrder[] = [...INITIAL_MEAL_ORDERS];
+  private housekeepingTasks: IHousekeepingTask[] = [...INITIAL_HOUSEKEEPING_TASKS];
+  private tickets: IMaintenanceTicket[] = [...INITIAL_MAINTENANCE_TICKETS];
   private ticketAttachments: ITicketAttachment[] = [];
-  private invoices: IInvoice[] = [];
-  private invoiceLines: IInvoiceLine[] = [];
-  private payments: IPayment[] = [];
+  private invoices: IInvoice[] = [...INITIAL_INVOICES];
+  private invoiceLines: IInvoiceLine[] = [
+    {
+      id: 'il1',
+      invoiceId: 'inv1',
+      sourceType: InvoiceLineSourceType.ROOM,
+      sourceId: 'b1',
+      description: 'Room 201 - 5 nights',
+      quantity: 5,
+      unitPrice: 1450,
+      vatCode: VatCode.VAT_15,
+      vatAmount: 1087.5,
+      lineTotal: 8337.5,
+      createdAt: new Date(getDate(-5)),
+      updatedAt: new Date(getDate(-5))
+    },
+    {
+      id: 'il2',
+      invoiceId: 'inv2',
+      sourceType: InvoiceLineSourceType.ROOM,
+      sourceId: 'b2',
+      description: 'Room 101 - 4 nights',
+      quantity: 4,
+      unitPrice: 950,
+      vatCode: VatCode.VAT_15,
+      vatAmount: 570,
+      lineTotal: 4370,
+      createdAt: new Date(getDate(-3)),
+      updatedAt: new Date(getDate(-3))
+    },
+    {
+      id: 'il3',
+      invoiceId: 'inv3',
+      sourceType: InvoiceLineSourceType.ROOM,
+      sourceId: 'b3',
+      description: 'Room 202 - 5 nights',
+      quantity: 5,
+      unitPrice: 1450,
+      vatCode: VatCode.VAT_15,
+      vatAmount: 1087.5,
+      lineTotal: 8337.5,
+      createdAt: new Date(getDate(0)),
+      updatedAt: new Date(getDate(0))
+    },
+    {
+      id: 'il4',
+      invoiceId: 'inv3',
+      sourceType: InvoiceLineSourceType.FEE,
+      sourceId: 'f1',
+      description: 'Late check-in fee',
+      quantity: 1,
+      unitPrice: 200,
+      vatCode: VatCode.VAT_15,
+      vatAmount: 30,
+      lineTotal: 230,
+      createdAt: new Date(getDate(0)),
+      updatedAt: new Date(getDate(0))
+    },
+  ];
+  private payments: IPayment[] = [...INITIAL_PAYMENTS];
   private accountingExports: IAccountingExport[] = [];
   private auditSummaries: IDailySummary[] = [];
   private auditLogs: IAuditLog[] = [];
