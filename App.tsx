@@ -144,7 +144,7 @@ const App: React.FC = () => {
       case 'Reports': return <ReportingView userRole={userRole} />;
       case 'Dashboard':
       default: return (
-        <Dashboard userRole={userRole} onNavigate={setActiveTab} />
+        <Dashboard key={`dashboard-${activeTab}`} userRole={userRole} onNavigate={setActiveTab} />
       );
     }
   };

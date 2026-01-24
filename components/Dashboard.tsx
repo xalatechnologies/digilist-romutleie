@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { getDashboardSummary, DashboardSummary } from '../services/dashboardApiService';
 import { store } from '../services/storeService';
-import { MaintenanceTicketStatus, MaintenanceSeverity, BookingStatus, RoomStatus } from '../types';
+import { MaintenanceTicketStatus, MaintenanceSeverity, BookingStatus, RoomStatus, AccountingExportStatus } from '../types';
 
 interface DashboardProps {
   userRole: UserRole;
@@ -70,30 +70,75 @@ const KpiRow: React.FC<{
 }> = ({ summary }) => {
   const { t } = useTranslation();
   
-  const occupancyRate = summary.rooms.total > 0
-    ? Math.round((summary.occupancy.occupiedToday / summary.rooms.total) * 100)
+  // Read fresh data directly from store for real-time updates
+  const rooms = store.getRooms();
+  const bookings = store.getBookings();
+  const housekeepingTaskList = store.getHousekeepingTaskList();
+  const invoices = store.getInvoices();
+  
+  // Calculate today's date
+  const today = new Date().toISOString().split('T')[0];
+  const todayDate = new Date(today);
+  todayDate.setHours(0, 0, 0, 0);
+  
+  // Available rooms (CLEAN status)
+  const cleanCount = rooms.filter(r => r.status === RoomStatus.CLEAN).length;
+  
+  // Occupied rooms (bookings that cover today)
+  const occupiedToday = bookings.filter(b => {
+    if (b.status === BookingStatus.CANCELLED) return false;
+    const start = new Date(b.startDate);
+    const end = new Date(b.endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    return start <= todayDate && end > todayDate;
+  }).length;
+  
+  // Occupancy rate
+  const occupancyRate = rooms.length > 0
+    ? Math.round((occupiedToday / rooms.length) * 100)
     : 0;
+  
+  // Housekeeping pending tasks (DIRTY rooms)
+  const pendingHousekeepingTasks = housekeepingTaskList.filter(t => 
+    t.room.status === RoomStatus.DIRTY
+  ).length;
+  
+  // Out of service rooms
+  const outOfServiceCount = rooms.filter(r => r.status === RoomStatus.OUT_OF_SERVICE).length;
+  
+  // Failed Visma exports - check all invoices for failed exports
+  const vismaExportsFailed = invoices.reduce((count, invoice) => {
+    const exports = store.getAccountingExportsByInvoice(invoice.id);
+    const hasFailed = exports.some((e: any) => 
+      e.status === AccountingExportStatus.FAILED || e.status === 'FAILED'
+    );
+    return count + (hasFailed ? 1 : 0);
+  }, 0);
+  
+  // Alerts = OOS rooms + failed exports
+  const alertsCount = outOfServiceCount + vismaExportsFailed;
 
   // Core KPIs - removed arrivals/departures to avoid duplication with detailed blocks below
   const kpis = [
     {
       label: t('dashboard.roomsAvailable', 'Available'),
-      value: summary.rooms.cleanCount,
+      value: cleanCount,
       sub: t('dashboard.rooms', 'Rooms'),
     },
     {
       label: t('dashboard.roomsOccupied', 'Occupied'),
-      value: summary.occupancy.occupiedToday,
+      value: occupiedToday,
       sub: `${occupancyRate}%`,
     },
     {
       label: t('dashboard.housekeepingPending', 'Housekeeping'),
-      value: summary.housekeeping.tasksPending,
-      sub: t('dashboard.pending'),
+      value: pendingHousekeepingTasks,
+      sub: t('dashboard.pending', 'Pending'),
     },
     {
       label: t('dashboard.alerts', 'Alerts'),
-      value: (summary.billing?.vismaExportsFailed || 0) + (summary.rooms.outOfServiceCount || 0),
+      value: alertsCount,
       sub: t('dashboard.exceptions', 'Exceptions'),
     },
   ];
@@ -121,9 +166,36 @@ const ArrivalsBlock: React.FC<{
   onNavigate: (view: string) => void;
 }> = ({ arrivals, onNavigate }) => {
   const { t } = useTranslation();
+  
+  // Read fresh data directly from store for real-time updates
+  const today = new Date().toISOString().split('T')[0];
+  const todayDate = new Date(today);
+  todayDate.setHours(0, 0, 0, 0);
+  
+  const bookings = store.getBookings();
+  const rooms = store.getRooms();
+  
+  // Filter for arrivals today (startDate = today)
+  const arrivalsToday = bookings.filter(b => {
+    if (b.status === BookingStatus.CANCELLED) return false;
+    const startDate = new Date(b.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    return startDate.getTime() === todayDate.getTime();
+  });
+  
+  // Map to arrival items
+  const arrivalItems = arrivalsToday.slice(0, 10).map(b => ({
+    reservationId: b.id,
+    roomId: b.roomId,
+    roomNumber: rooms.find(r => r.id === b.roomId)?.number || '',
+    customerName: b.customerName,
+    startDate: b.startDate,
+    status: b.status,
+  }));
+  
   const maxRows = 10;
-  const showViewAll = arrivals.items.length > maxRows;
-  const displayItems = arrivals.items.slice(0, maxRows);
+  const showViewAll = arrivalsToday.length > maxRows;
+  const displayItems = arrivalItems.slice(0, maxRows);
 
   return (
     <Card className="border border-border bg-white">
@@ -132,7 +204,7 @@ const ArrivalsBlock: React.FC<{
           <LogIn size={16} className="text-emerald-600" />
           <Text size="sm" weight="bold" className="uppercase tracking-widest text-slate-700">{t('dashboard.arrivalsToday')}</Text>
         </div>
-        <Badge variant="secondary" className="bg-white border border-border text-foreground">{arrivals.count}</Badge>
+        <Badge variant="secondary" className="bg-white border border-border text-foreground">{arrivalsToday.length}</Badge>
       </div>
       <div className="divide-y divide-border/30">
         {displayItems.length === 0 ? (
@@ -180,7 +252,7 @@ const ArrivalsBlock: React.FC<{
                   onClick={() => onNavigate('Bookings')}
                   className="w-full text-primary hover:text-primary/80"
                 >
-                  {t('dashboard.viewAll', 'View all arrivals')} ({arrivals.items.length - maxRows} {t('dashboard.more', 'more')})
+                  {t('dashboard.viewAll', 'View all arrivals')} ({arrivalsToday.length - maxRows} {t('dashboard.more', 'more')})
                 </Button>
               </div>
             )}
@@ -199,9 +271,36 @@ const DeparturesBlock: React.FC<{
   onNavigate: (view: string) => void;
 }> = ({ departures, onNavigate }) => {
   const { t } = useTranslation();
+  
+  // Read fresh data directly from store for real-time updates
+  const today = new Date().toISOString().split('T')[0];
+  const todayDate = new Date(today);
+  todayDate.setHours(0, 0, 0, 0);
+  
+  const bookings = store.getBookings();
+  const rooms = store.getRooms();
+  
+  // Filter for departures today (endDate = today)
+  const departuresToday = bookings.filter(b => {
+    if (b.status === BookingStatus.CANCELLED) return false;
+    const endDate = new Date(b.endDate);
+    endDate.setHours(0, 0, 0, 0);
+    return endDate.getTime() === todayDate.getTime();
+  });
+  
+  // Map to departure items
+  const departureItems = departuresToday.slice(0, 10).map(b => ({
+    reservationId: b.id,
+    roomId: b.roomId,
+    roomNumber: rooms.find(r => r.id === b.roomId)?.number || '',
+    customerName: b.customerName,
+    endDate: b.endDate,
+    status: b.status,
+  }));
+  
   const maxRows = 10;
-  const showViewAll = departures.items.length > maxRows;
-  const displayItems = departures.items.slice(0, maxRows);
+  const showViewAll = departuresToday.length > maxRows;
+  const displayItems = departureItems.slice(0, maxRows);
 
   return (
     <Card className="border border-border bg-white">
@@ -210,7 +309,7 @@ const DeparturesBlock: React.FC<{
           <LogOut size={16} className="text-amber-600" />
           <Text size="sm" weight="bold" className="uppercase tracking-widest text-slate-700">{t('dashboard.departuresToday')}</Text>
         </div>
-        <Badge variant="secondary" className="bg-white border border-border text-foreground">{departures.count}</Badge>
+        <Badge variant="secondary" className="bg-white border border-border text-foreground">{departuresToday.length}</Badge>
       </div>
       <div className="divide-y divide-border/30">
         {displayItems.length === 0 ? (
@@ -255,7 +354,7 @@ const DeparturesBlock: React.FC<{
                   onClick={() => onNavigate('Bookings')}
                   className="w-full text-primary hover:text-primary/80"
                 >
-                  {t('dashboard.viewAll', 'View all departures')} ({departures.items.length - maxRows} {t('dashboard.more', 'more')})
+                  {t('dashboard.viewAll', 'View all departures')} ({departuresToday.length - maxRows} {t('dashboard.more', 'more')})
                 </Button>
               </div>
             )}
@@ -275,7 +374,7 @@ const TaskQueues: React.FC<{
 }> = ({ summary, onNavigate }) => {
   const { t } = useTranslation();
   
-  // Get maintenance tickets data
+  // Get maintenance tickets data directly from store (fresh data)
   const maintenanceTickets = store.getTickets();
   const openTickets = maintenanceTickets.filter(t => 
     t.status === MaintenanceTicketStatus.OPEN || 
@@ -287,6 +386,21 @@ const TaskQueues: React.FC<{
     t.severity === MaintenanceSeverity.HIGH
   ).length;
 
+  // Get housekeeping tasks directly from store (fresh data) - same as HousekeepingView
+  const housekeepingTaskList = store.getHousekeepingTaskList();
+  const pendingHousekeepingTasks = housekeepingTaskList.filter(t => 
+    t.room.status === RoomStatus.DIRTY
+  );
+  const today = new Date().toISOString().split('T')[0];
+  const dueTodayTasks = pendingHousekeepingTasks.filter(t => {
+    if (!t.nextArrival) return false;
+    const arrivalDate = new Date(t.nextArrival.date);
+    arrivalDate.setHours(0, 0, 0, 0);
+    const todayDate = new Date(today);
+    todayDate.setHours(0, 0, 0, 0);
+    return arrivalDate.getTime() === todayDate.getTime();
+  });
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Housekeeping Queue */}
@@ -297,17 +411,17 @@ const TaskQueues: React.FC<{
             <Text size="sm" weight="bold" className="uppercase tracking-widest text-slate-700">{t('dashboard.housekeeping', 'Housekeeping')}</Text>
           </div>
           <Badge variant="secondary" className="bg-white border border-border text-foreground">
-            {summary.housekeeping.tasksPending}
+            {pendingHousekeepingTasks.length}
           </Badge>
         </div>
         <div className="p-4 space-y-3">
           <div className="flex justify-between items-center text-sm">
             <Text size="xs" muted>{t('dashboard.pendingTasks', 'Pending tasks')}</Text>
-            <Text size="sm" weight="bold" className="text-slate-900">{summary.housekeeping.tasksPending}</Text>
+            <Text size="sm" weight="bold" className="text-slate-900">{pendingHousekeepingTasks.length}</Text>
           </div>
           <div className="flex justify-between items-center text-sm">
             <Text size="xs" muted>{t('dashboard.dueToday', 'Due today')}</Text>
-            <Text size="sm" weight="bold" className="text-slate-900">{summary.housekeeping.tasksDueToday}</Text>
+            <Text size="sm" weight="bold" className="text-slate-900">{dueTodayTasks.length}</Text>
           </div>
           <div className="pt-3 border-t border-border">
             <Button
@@ -505,9 +619,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, onNavigate }) =>
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch dashboard summary with fallback to store service
-  const fetchSummary = async (date?: string) => {
+  const fetchSummary = async (date?: string, isRefresh: boolean = false) => {
     try {
-      setLoading(true);
+      // Only show full loading state if we don't have data yet
+      if (!summary && !isRefresh) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const data = await getDashboardSummary(date || selectedDate);
@@ -542,10 +659,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, onNavigate }) =>
                  b.status !== BookingStatus.CANCELLED;
         });
         
-        const pendingHousekeepingTasks = housekeepingTasks.filter(t => 
-          t.room.status === RoomStatus.DIRTY
-        );
+        // Get all housekeeping tasks (for all rooms)
+        // Filter for pending tasks (DIRTY rooms) - same logic as HousekeepingView
+        const pendingHousekeepingTasks = housekeepingTasks.filter(t => {
+          // Pending tasks are rooms that are DIRTY (need cleaning)
+          return t.room.status === RoomStatus.DIRTY;
+        });
         
+        // Tasks due today are pending tasks with arrival today
         const dueTodayTasks = pendingHousekeepingTasks.filter(t => {
           if (!t.nextArrival) return false;
           const arrivalDate = new Date(t.nextArrival.date);
@@ -630,20 +751,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, onNavigate }) =>
   };
 
   useEffect(() => {
+    // Initial fetch
     fetchSummary();
+    
     // Refresh every 30 seconds
-    const interval = setInterval(() => fetchSummary(), 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => fetchSummary(selectedDate, true), 30000);
+    
+    // Refresh when page becomes visible (user switches back to tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSummary(selectedDate, true);
+      }
+    };
+    
+    // Refresh when window gains focus (user switches back to app)
+    const handleFocus = () => {
+      fetchSummary(selectedDate, true);
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
+
+  // Refresh when selectedDate changes
+  useEffect(() => {
+    if (selectedDate) {
+      fetchSummary(selectedDate, false);
+    }
+  }, [selectedDate]);
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
-    fetchSummary(date);
+    fetchSummary(date, false);
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchSummary();
+    fetchSummary(selectedDate, true);
   };
 
   // Loading state
