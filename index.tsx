@@ -7,7 +7,9 @@ import App from './App';
 // import '@xalatechnologies/platform/dist/tokens.css';
 // Import I18nProvider
 // import { I18nProvider } from '@xalatechnologies/platform/i18n/client';
+import './i18n/config';
 import './index.css';
+import { RequestContextProvider } from './contexts/RequestContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -19,7 +21,9 @@ root.render(
   <React.StrictMode>
     {/* Wrap with I18nProvider once package is installed */}
     {/* <I18nProvider defaultLocale="nb" fallbackLocale="en"> */}
-      <App />
+      <RequestContextProvider>
+        <App />
+      </RequestContextProvider>
     {/* </I18nProvider> */}
   </React.StrictMode>
 );

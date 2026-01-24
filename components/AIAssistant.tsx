@@ -90,7 +90,7 @@ export const AIAssistant: React.FC = () => {
               <div className={`h-9 w-9 shrink-0 rounded-xl flex items-center justify-center shadow-sm ${msg.role === MessageRole.USER ? 'bg-primary' : 'bg-white border'}`}>
                 {msg.role === MessageRole.USER ? <User size={16} className="text-primary-foreground" /> : <Bot size={16} className="text-primary" />}
               </div>
-              <div className={`p-4 rounded-2xl text-base leading-relaxed shadow-sm ${msg.role === MessageRole.USER ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-white text-foreground rounded-tl-none border border-slate-100'}`}>
+              <div className={`p-4 rounded-2xl text-base leading-relaxed shadow-sm ${msg.role === MessageRole.USER ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-white text-foreground rounded-tl-none border border-border'}`}>
                 {msg.content || (msg.role === MessageRole.ASSISTANT && isLoading && i === messages.length - 1 ? <Loader2 size={16} className="animate-spin opacity-50" /> : msg.content)}
               </div>
             </div>
@@ -110,7 +110,7 @@ export const AIAssistant: React.FC = () => {
                 handleSend();
               }
             }}
-            className="flex-1 rounded-xl h-12 shadow-sm border-slate-200"
+            className="flex-1 rounded-xl h-12 shadow-sm border border-border"
             disabled={isLoading}
           />
           <Button size="icon" type="submit" disabled={isLoading || !input.trim()} className="h-12 w-12 rounded-xl shadow-lg">

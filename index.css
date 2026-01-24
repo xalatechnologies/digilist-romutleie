@@ -52,15 +52,15 @@
   /* Card Colors */
   --card: 0 0% 100%;
   --card-foreground: 222.2 84% 4.9%;
-  --card-border: 214.3 31.8% 91.4%;
+  --card-border: 214.3 31.8% 75%;
   
   /* Popover Colors */
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
   
-  /* Border & Input */
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
+  /* Border & Input - Stronger borders for better visibility */
+  --border: 214.3 31.8% 75%;
+  --input: 214.3 31.8% 75%;
   --input-focus: 221.2 83.2% 53.3%;
   
   /* Ring (Focus) */
@@ -132,7 +132,7 @@
   --destructive-hover: 0 62.8% 35.6%;
   --card: 222.2 84% 4.9%;
   --card-foreground: 210 40% 98%;
-  --card-border: 217.2 32.6% 17.5%;
+  --card-border: 217.2 32.6% 35%;
   --popover: 222.2 84% 4.9%;
   --popover-foreground: 210 40% 98%;
   --border: 217.2 32.6% 17.5%;
@@ -152,11 +152,68 @@
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-size: 16px; /* Base font size for accessibility */
+    line-height: 1.5; /* Improved readability */
   }
   
-  /* Focus visible styles */
+  /* Heading hierarchy for accessibility */
+  h1 {
+    @apply text-3xl font-bold;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold;
+    line-height: 1.3;
+    margin-bottom: 0.75rem;
+  }
+  
+  h3 {
+    @apply text-xl font-semibold;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Ensure minimum text size for readability */
+  p, span, div, li {
+    font-size: inherit;
+    line-height: 1.5;
+  }
+  
+  /* Small text must still be readable - minimum 14px */
+  .text-xs {
+    font-size: 0.875rem; /* 14px minimum */
+    line-height: 1.5;
+  }
+  
+  /* Prevent text smaller than 14px for accessibility */
+  .text-\[10px\] {
+    font-size: 0.875rem !important; /* Force minimum readable size */
+    line-height: 1.5;
+  }
+  
+  /* Ensure badges have readable text */
+  .badge-text {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+  
+  /* Focus visible styles - Enhanced for accessibility */
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  
+  /* Ensure focus is always visible */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 
@@ -220,27 +277,194 @@
   /* Card base using tokens */
   .card-base {
     @apply bg-card text-card-foreground rounded-lg border shadow-sm;
-    border-color: hsl(var(--card-border));
+    border-color: hsl(var(--border));
+    border-width: 2px;
     border-radius: var(--radius-lg);
   }
   
   /* Input base using tokens - Mobile First */
   .input-base {
-    @apply flex h-11 w-full rounded-md border bg-background px-3 sm:px-4 py-2;
-    @apply text-base ring-offset-background;
+    @apply flex w-full rounded-md border bg-background ring-offset-background;
     @apply file:border-0 file:bg-transparent file:text-sm file:font-medium;
     @apply placeholder:text-muted-foreground;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
     @apply disabled:cursor-not-allowed disabled:opacity-50;
-    border-color: hsl(var(--input));
+    border: 1px solid hsl(var(--border)) !important;
     border-radius: var(--radius-md);
+    touch-action: manipulation;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  /* Ensure date inputs have visible borders */
+  .input-base[type="date"],
+  .input-base[type="time"],
+  .input-base[type="datetime-local"] {
+    border: 1px solid hsl(var(--border)) !important;
+  }
+  
+  /* Input size variants - Minimum font size 16px for accessibility */
+  .input-base-sm {
+    @apply h-9 px-3 py-1.5;
+    min-height: 36px;
+    font-size: 16px; /* Minimum for accessibility, prevents iOS zoom */
+  }
+  
+  .input-base-md {
+    @apply h-11 px-3 sm:px-4 py-2;
     min-height: 44px; /* Minimum touch target size */
     font-size: 16px; /* Prevent zoom on iOS input focus */
-    touch-action: manipulation;
+  }
+  
+  .input-base-lg {
+    @apply h-14 px-4 sm:px-5 py-3;
+    min-height: 56px;
+    font-size: 18px;
+  }
+  
+  /* Input hover and focus states */
+  .input-base:hover {
+    border: 1px solid hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.1);
   }
   
   .input-base:focus-visible {
-    border-color: hsl(var(--input-focus));
+    border: 1px solid hsl(var(--input-focus)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3);
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  
+  /* Input error state */
+  .input-base-error {
+    border: 1px solid hsl(var(--destructive)) !important;
+  }
+  
+  .input-base-error:hover {
+    border: 1px solid hsl(var(--destructive)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--destructive) / 0.1);
+  }
+  
+  .input-base-error:focus-visible {
+    border: 1px solid hsl(var(--destructive)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+  }
+  
+  /* Textarea base - same as input but with resize control */
+  .textarea-base {
+    @apply flex w-full rounded-md border bg-background ring-offset-background;
+    @apply placeholder:text-muted-foreground;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: var(--radius-md);
+    touch-action: manipulation;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    resize: vertical;
+  }
+  
+  .textarea-base-sm {
+    @apply px-3 py-1.5;
+    min-height: 80px;
+    font-size: 16px; /* Minimum for accessibility */
+  }
+  
+  .textarea-base-md {
+    @apply px-3 sm:px-4 py-2;
+    min-height: 100px;
+    font-size: 16px;
+  }
+  
+  .textarea-base-lg {
+    @apply px-4 sm:px-5 py-3;
+    min-height: 120px;
+    font-size: 18px;
+  }
+  
+  .textarea-base:hover {
+    border: 1px solid hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.1);
+  }
+  
+  .textarea-base:focus-visible {
+    border: 1px solid hsl(var(--input-focus)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3);
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  
+  .textarea-base-error {
+    border: 1px solid hsl(var(--destructive)) !important;
+  }
+  
+  .textarea-base-error:hover {
+    border: 1px solid hsl(var(--destructive)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--destructive) / 0.1);
+  }
+  
+  .textarea-base-error:focus-visible {
+    border: 1px solid hsl(var(--destructive)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
+  }
+  
+  /* Select base - same styling as input */
+  .select-base {
+    @apply flex w-full rounded-md border bg-background ring-offset-background;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: var(--radius-md);
+    touch-action: manipulation;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+  }
+  
+  .select-base-sm {
+    @apply h-9 px-3 py-1.5;
+    min-height: 36px;
+    font-size: 16px; /* Minimum for accessibility */
+  }
+  
+  .select-base-md {
+    @apply h-11 px-3 sm:px-4 py-2;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  
+  .select-base-lg {
+    @apply h-14 px-4 sm:px-5 py-3;
+    min-height: 56px;
+    font-size: 18px;
+  }
+  
+  .select-base:hover {
+    border: 1px solid hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.1);
+  }
+  
+  .select-base:focus-visible {
+    border: 1px solid hsl(var(--input-focus)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3);
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  
+  .select-base-error {
+    border: 1px solid hsl(var(--destructive)) !important;
+  }
+  
+  .select-base-error:hover {
+    border: 1px solid hsl(var(--destructive)) !important;
+    box-shadow: 0 0 0 1px hsl(var(--destructive) / 0.1);
+  }
+  
+  .select-base-error:focus-visible {
+    border: 1px solid hsl(var(--destructive)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--destructive) / 0.2);
   }
   
   /* Mobile-optimized table scrolling */
@@ -261,6 +485,34 @@
   .table-scroll::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
     border-radius: 4px;
+  }
+  
+  /* Checkbox and Radio base styling */
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply w-4 h-4 rounded border-2 border-border bg-background;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    accent-color: hsl(var(--primary));
+  }
+  
+  input[type="checkbox"]:hover,
+  input[type="radio"]:hover {
+    border-color: hsl(var(--primary));
+  }
+  
+  input[type="checkbox"]:checked,
+  input[type="radio"]:checked {
+    border-color: hsl(var(--primary));
+    background-color: hsl(var(--primary));
+  }
+  
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible {
+    border-color: hsl(var(--input-focus));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
   }
 }
 

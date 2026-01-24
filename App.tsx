@@ -1,11 +1,15 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ApplicationShell, Button, Text, Card } from './components/XalaUI';
 import { Dashboard } from './components/Dashboard';
 import { 
   RoomsView, 
   BookingView, 
-  KitchenView, 
+  KitchenView,
+  KitchenBoardView,
+  MealOrdersView,
+  KitchenItemsView,
   BillingView,
   HousekeepingView,
   MaintenanceView,
@@ -32,12 +36,23 @@ import {
   Shield,
   ChevronLeft
 } from 'lucide-react';
-import { UserRole, BookingStatus } from './types';
+import { UserRole, BookingStatus, MealOrderStatus, MaintenanceTicketStatus } from './types';
 import { store } from './services/storeService';
+import { useRequestContext } from './contexts/RequestContext';
 
 const App: React.FC = () => {
+  const { t } = useTranslation();
+  const { context: requestContext, setContext } = useRequestContext();
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [userRole, setUserRole] = useState<UserRole>(UserRole.ADMIN);
+  
+  // Sync userRole state with request context
+  React.useEffect(() => {
+    setContext({
+      userId: userRole === UserRole.ADMIN ? 'admin' : `user-${userRole.toLowerCase()}`,
+      roles: [userRole]
+    });
+  }, [userRole, setContext]);
   const [openBookingForm, setOpenBookingForm] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -50,40 +65,40 @@ const App: React.FC = () => {
     
     return {
       occupancy: rooms.length > 0 ? Math.round((activeRooms / rooms.length) * 100) : 0,
-      kitchenPending: store.getMeals().filter(m => m.status === 'Pending').length,
+      kitchenPending: store.getMeals().filter(m => m.status === MealOrderStatus.PLANNED || m.status === MealOrderStatus.IN_PREP || m.status === MealOrderStatus.READY).length,
       housekeepingPending: store.getHousekeepingTasks().filter(t => t.status === 'Pending').length,
-      ticketsOpen: store.getTickets().filter(t => t.status === 'Open').length
+      ticketsOpen: store.getTickets().filter(t => t.status === MaintenanceTicketStatus.OPEN || t.status === MaintenanceTicketStatus.IN_PROGRESS || t.status === MaintenanceTicketStatus.TRIAGED).length
     };
   }, [activeTab, userRole]); // Re-calculate when view or role changes
 
   const menuGroups = [
     {
-      label: 'Overview',
+      label: t('navigation.overview'),
       items: [
-        { name: 'Dashboard', icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF], badge: null },
+        { key: 'Dashboard', name: t('navigation.dashboard'), icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF], badge: null },
       ]
     },
     {
-      label: 'Operations',
+      label: t('navigation.operations'),
       items: [
-        { name: 'Rooms', icon: Bed, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF, UserRole.HOUSEKEEPING], badge: null },
-        { name: 'Bookings', icon: PieChart, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF], badge: null },
-        { name: 'Housekeeping', icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.HOUSEKEEPING], badge: stats.housekeepingPending > 0 ? stats.housekeepingPending : null },
-        { name: 'Kitchen', icon: Utensils, roles: [UserRole.ADMIN, UserRole.KITCHEN], badge: stats.kitchenPending > 0 ? stats.kitchenPending : null },
-        { name: 'Maintenance', icon: Wrench, roles: [UserRole.ADMIN, UserRole.HOUSEKEEPING], badge: stats.ticketsOpen > 0 ? stats.ticketsOpen : null },
+        { key: 'Rooms', name: t('navigation.rooms'), icon: Bed, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF, UserRole.HOUSEKEEPING], badge: null },
+        { key: 'Bookings', name: t('navigation.bookings'), icon: PieChart, roles: [UserRole.ADMIN, UserRole.BOOKING_STAFF], badge: null },
+        { key: 'Housekeeping', name: t('navigation.housekeeping'), icon: ClipboardList, roles: [UserRole.ADMIN, UserRole.HOUSEKEEPING], badge: stats.housekeepingPending > 0 ? stats.housekeepingPending : null },
+        { key: 'Kitchen', name: t('navigation.kitchen'), icon: Utensils, roles: [UserRole.ADMIN, UserRole.KITCHEN], badge: stats.kitchenPending > 0 ? stats.kitchenPending : null },
+        { key: 'Maintenance', name: t('navigation.maintenance'), icon: Wrench, roles: [UserRole.ADMIN, UserRole.HOUSEKEEPING], badge: stats.ticketsOpen > 0 ? stats.ticketsOpen : null },
       ]
     },
     {
-      label: 'Finance & Reports',
+      label: t('navigation.financeReports'),
       items: [
-        { name: 'Billing', icon: CreditCard, roles: [UserRole.ADMIN, UserRole.FINANCE], badge: null },
-        { name: 'Reports', icon: Activity, roles: [UserRole.ADMIN, UserRole.FINANCE], badge: null },
+        { key: 'Billing', name: t('navigation.billing'), icon: CreditCard, roles: [UserRole.ADMIN, UserRole.FINANCE], badge: null },
+        { key: 'Reports', name: t('navigation.reports'), icon: Activity, roles: [UserRole.ADMIN, UserRole.FINANCE], badge: null },
       ]
     },
     {
-      label: 'System',
+      label: t('navigation.system'),
       items: [
-        { name: 'Audit Logs', icon: History, roles: [UserRole.ADMIN], badge: null },
+        { key: 'Audit Logs', name: t('navigation.auditLogs'), icon: History, roles: [UserRole.ADMIN], badge: null },
       ]
     }
   ];
@@ -121,12 +136,13 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'Rooms': return <RoomsView />;
       case 'Bookings': return <BookingView autoOpenForm={openBookingForm} onFormOpened={() => setOpenBookingForm(false)} />;
-      case 'Housekeeping': return <HousekeepingView />;
-      case 'Kitchen': return <KitchenView />;
-      case 'Billing': return <BillingView />;
-      case 'Maintenance': return <MaintenanceView />;
+      case 'Housekeeping': return <HousekeepingView userRole={userRole} />;
+      case 'Kitchen': return <KitchenView userRole={userRole} />;
+      case 'Billing': return <BillingView userRole={userRole} />;
+      case 'Maintenance': return <MaintenanceView userRole={userRole} />;
       case 'Audit Logs': return <AuditLogView />;
-      case 'Reports': return <ReportingView />;
+      case 'Reports': return <ReportingView userRole={userRole} />;
+      case 'Dashboard':
       default: return (
         <Dashboard userRole={userRole} onNavigate={setActiveTab} />
       );
@@ -177,7 +193,7 @@ const App: React.FC = () => {
                     <div className="w-9 h-9 rounded-token-lg bg-primary/10 flex items-center justify-center">
                       <Sparkles className="w-4 h-4 text-primary" />
                     </div>
-                    <Text size="base" weight="bold" className="sm:text-lg">Navigation</Text>
+                    <Text size="base" weight="bold" className="sm:text-lg">{t('navigation.overview')}</Text>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)} className="h-10 w-10 sm:h-11 sm:w-11 touch-manipulation rounded-token-full hover:bg-muted">
                   <X size={18} className="sm:w-5 sm:h-5" />
@@ -201,13 +217,13 @@ const App: React.FC = () => {
               <nav className="space-y-1">
                         {filteredGroupItems.map((item) => {
                           const Icon = item.icon;
-                          const isActive = activeTab === item.name;
+                          const isActive = activeTab === item.key;
                           
                           return (
                   <button
-                    key={item.name}
+                    key={item.key}
                     onClick={() => {
-                      handleTabChange(item.name);
+                      handleTabChange(item.key);
                       setMobileMenuOpen(false);
                     }}
                               className={`group w-full flex items-center gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-token-xl text-sm font-medium transition-all duration-200 touch-manipulation min-h-[52px] relative overflow-hidden ${
@@ -266,7 +282,7 @@ const App: React.FC = () => {
                     <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-card" />
                   </div>
                   <div className="flex-1">
-                    <Text size="sm" weight="bold">Administrator</Text>
+                    <Text size="sm" weight="bold">{t('common.admin', 'Administrator')}</Text>
                     <div className="flex items-center gap-1.5">
                       <Shield size={11} className="text-primary" />
                       <Text size="xs" className="text-primary font-semibold uppercase tracking-wide text-[10px]">
@@ -280,11 +296,11 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-muted/50 rounded-token-lg px-3 py-2.5 text-center">
                     <Text size="lg" weight="bold" className="text-primary">{stats.occupancy}%</Text>
-                    <Text size="xs" muted className="text-[9px] uppercase tracking-wider opacity-70">Occupancy</Text>
+                    <Text size="xs" muted className="text-[9px] uppercase tracking-wider opacity-70">{t('dashboard.occupancy')}</Text>
                   </div>
                   <div className="bg-muted/50 rounded-token-lg px-3 py-2.5 text-center">
                     <Text size="lg" weight="bold" className="text-info">{stats.kitchenPending + stats.housekeepingPending}</Text>
-                    <Text size="xs" muted className="text-[9px] uppercase tracking-wider opacity-70">Pending</Text>
+                    <Text size="xs" muted className="text-[9px] uppercase tracking-wider opacity-70">{t('dashboard.pending')}</Text>
                   </div>
                 </div>
               </div>
@@ -317,16 +333,16 @@ const App: React.FC = () => {
                         <Text size="xs" weight="bold" muted className="uppercase tracking-[0.15em] opacity-50 text-[10px] xl:text-[11px]">
                           {group.label}
                         </Text>
-                      </div>
+            </div>
                       <nav className="space-y-0.5">
                         {filteredGroupItems.map((item) => {
                           const Icon = item.icon;
-                          const isActive = activeTab === item.name;
+                          const isActive = activeTab === item.key;
                           
                           return (
-                            <button
-                              key={item.name}
-                              onClick={() => handleTabChange(item.name)}
+                <button
+                  key={item.key}
+                  onClick={() => handleTabChange(item.key)}
                               className={`nav-item group w-full flex items-center gap-2.5 xl:gap-3 px-3 xl:px-4 py-2.5 xl:py-3 rounded-token-xl text-xs xl:text-sm font-medium transition-all duration-200 touch-manipulation relative overflow-hidden ${
                                 isActive 
                                   ? 'bg-primary text-primary-foreground shadow-token-md' 
@@ -367,10 +383,10 @@ const App: React.FC = () => {
                                   ? 'opacity-60 translate-x-0' 
                                   : 'opacity-0 -translate-x-2 group-hover:opacity-40 group-hover:translate-x-0'
                               }`} />
-                            </button>
+                </button>
                           );
                         })}
-                      </nav>
+            </nav>
                     </div>
                   );
                 })}
