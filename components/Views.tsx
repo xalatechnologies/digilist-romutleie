@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/config';
 import { 
   store 
 } from '../services/storeService';
@@ -26,6 +27,7 @@ import {
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from 'recharts';
 import { generateCSV, downloadCSV } from '../utils/csvExport';
 import { fetchRoomSummaries, fetchRoomDetail } from '../services/roomApiService';
+import { localizeRoomCondition, localizeRoomOccupancy, localizeRoomType, localizeBookingStatus, localizePaymentMethod, localizeInvoiceStatus, localizeMealOrderStatus, localizeKitchenItemName, localizeKitchenItemDescription, localizeMaintenanceStatus, localizeMaintenanceSeverity, localizeMaintenanceCategory, localizeMaintenanceTicketTitle, localizeMaintenanceTicketDescription, localizeBlockReason, localizeExportStatus } from '../utils/i18nHelpers';
 
 // --- PAYMENT LINK MODAL ---
 const PaymentLinkModal: React.FC<{
@@ -95,6 +97,7 @@ const BookingDetailDrawer: React.FC<{
   const { t } = useTranslation();
   const booking = store.getBookings().find(b => b.id === bookingId);
   const [showAudit, setShowAudit] = useState(false);
+  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
   
   if (!isOpen || !booking) return null;
 
@@ -106,7 +109,7 @@ const BookingDetailDrawer: React.FC<{
     <DetailDrawer 
       isOpen={isOpen} 
       onClose={onClose} 
-      title={t('bookings.details.title', 'Booking Details')}
+      title={t('bookings.detailsTitle', 'Booking Details')}
       subtitle={`#${booking.id.slice(0, 8).toUpperCase()}`}
     >
       {/* 1. Summary Block */}
@@ -124,12 +127,12 @@ const BookingDetailDrawer: React.FC<{
               }
               className="mt-1"
             >
-              {booking.status.replace('_', ' ')}
+              {localizeBookingStatus(t, booking.status)}
             </Badge>
           </div>
           <div>
             <Text size="xs" muted>{t('rooms.unit', 'Unit')}</Text>
-            <Text size="sm" weight="medium">{room?.number || 'N/A'}</Text>
+            <Text size="sm" weight="medium">{room?.number || t('common.notAvailable', 'N/A')}</Text>
           </div>
           <div>
             <Text size="xs" muted>{t('common.customer', 'Customer')}</Text>
@@ -192,10 +195,7 @@ const BookingDetailDrawer: React.FC<{
           {booking.status === BookingStatus.CHECKED_OUT && !invoice && (
             <Button 
               variant="outline"
-              onClick={() => {
-                alert('Invoice generation not yet implemented');
-                onUpdate();
-              }}
+              onClick={() => setShowCreateInvoiceModal(true)}
               className="w-full justify-start h-10"
             >
               {t('bookings.actions.createInvoice', 'Create Invoice')}
@@ -214,7 +214,7 @@ const BookingDetailDrawer: React.FC<{
           </div>
           <div className="flex justify-between">
             <Text size="sm" muted>{t('payment.method', 'Payment Method')}</Text>
-            <Text size="sm">{booking.paymentMethod?.replace('_', ' ') || '-'}</Text>
+            <Text size="sm">{booking.paymentMethod ? localizePaymentMethod(t, booking.paymentMethod) : '-'}</Text>
           </div>
           {booking.totalPrice && (
             <div className="flex justify-between">
@@ -253,7 +253,7 @@ const BookingDetailDrawer: React.FC<{
                   <FileText size={16} className="text-muted-foreground" />
                   <Text size="sm">{t('billing.invoice', 'Invoice')}</Text>
                 </div>
-                <Badge variant="outline">{invoice.status}</Badge>
+                <Badge variant="outline">{localizeInvoiceStatus(t, invoice.status)}</Badge>
               </div>
             )}
           </div>
@@ -271,11 +271,24 @@ const BookingDetailDrawer: React.FC<{
         </button>
         {showAudit && (
           <div className="mt-4 space-y-3 pl-2 border-l-2 border-border ml-2">
-            <Text size="xs" muted>Status changes and important events only</Text>
+            <Text size="xs" muted>{t('bookings.auditNote', 'Status changes and important events only')}</Text>
             {/* Placeholder for audit logs */}
           </div>
         )}
       </section>
+      
+      {/* Create Invoice Modal */}
+      {showCreateInvoiceModal && (
+        <CreateInvoiceFromBookingModal
+          bookingId={bookingId}
+          userRole="ADMIN" // Default role, could be passed as prop
+          onClose={() => setShowCreateInvoiceModal(false)}
+          onCreated={(invoiceId) => {
+            setShowCreateInvoiceModal(false);
+            onUpdate();
+          }}
+        />
+      )}
     </DetailDrawer>
   );
 };
@@ -303,6 +316,8 @@ export const BookingView = ({
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = previous week, +1 = next week
   
   // FORM STATE aligned with refined spec
   const [form, setForm] = useState<{
@@ -462,7 +477,7 @@ export const BookingView = ({
   };
 
   const handleCancel = () => {
-    if (confirm("Are you sure you want to discard this new reservation? All data will be lost.")) {
+    if (confirm(t('bookings.confirmDiscard', 'Are you sure you want to discard this new reservation? All data will be lost.'))) {
       setShowAdd(false);
       setCurrentStep(0);
     }
@@ -471,7 +486,7 @@ export const BookingView = ({
   const handleCreateBooking = () => {
     try {
       if (!form.customerName || !form.roomId || !form.startDate || !form.endDate) {
-        alert("Please complete the basic Guest and Stay information.");
+        alert(t('bookings.completeBasicInfo', 'Please complete the basic Guest and Stay information.'));
         return;
       }
       
@@ -487,7 +502,7 @@ export const BookingView = ({
       setBookings([...store.getBookings()]);
       setShowAdd(false);
       setCurrentStep(0);
-      alert("Reservation successfully locked and audit entry created.");
+      alert(t('bookings.reservationCreated', 'Reservation successfully locked and audit entry created.'));
     } catch (err: any) {
       alert(err.message);
     }
@@ -563,17 +578,41 @@ export const BookingView = ({
           title={t('bookings.title')} 
           subtitle={t('bookings.subtitle', 'Overview and handling of all reservations')}
           actions={
-          <Button 
-            onClick={() => { 
-                if (onNewReservationClick) onNewReservationClick();
-                else { setShowAdd(true); setCurrentStep(0); }
-            }} 
-            variant="primary"
-              className="flex items-center gap-2"
-            >
-              <Plus size={16} />
-              {t('bookings.newBooking', 'New booking')}
-          </Button>
+            <div className="flex items-center gap-3">
+              {/* View Toggle Buttons */}
+              <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg border border-border">
+                <Button
+                  variant={viewMode === 'list' ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                  className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <FileText size={16} className="mr-2" />
+                  {t('bookings.viewList', 'List')}
+                </Button>
+                <Button
+                  variant={viewMode === 'calendar' ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('calendar')}
+                  className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <Calendar size={16} className="mr-2" />
+                  {t('bookings.viewCalendar', 'Calendar')}
+                </Button>
+              </div>
+              {/* New Booking Button */}
+              <Button 
+                onClick={() => { 
+                    if (onNewReservationClick) onNewReservationClick();
+                    else { setShowAdd(true); setCurrentStep(0); }
+                }} 
+                variant="primary"
+                className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <Plus size={16} />
+                {t('bookings.newBooking', 'New booking')}
+              </Button>
+            </div>
           }
         />
       )}
@@ -591,7 +630,7 @@ export const BookingView = ({
                   size="md"
                   value={dateFrom}
                   onChange={e => setDateFrom(e.target.value)}
-                  className="w-36 flex-shrink-0"
+                  className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   aria-label={t('bookings.from', 'From date')}
                 />
                 <Text size="sm" muted className="flex-shrink-0">-</Text>
@@ -601,7 +640,7 @@ export const BookingView = ({
                   size="md"
                   value={dateTo}
                   onChange={e => setDateTo(e.target.value)}
-                  className="w-36 flex-shrink-0"
+                  className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   aria-label={t('bookings.to', 'To date')}
                 />
       </div>
@@ -615,7 +654,7 @@ export const BookingView = ({
                   size="md"
                   value={statusFilter.length === 1 ? statusFilter[0] : ''}
                   onChange={e => setStatusFilter(e.target.value ? [e.target.value as BookingStatus] : [])}
-                  className="w-[160px] flex-shrink-0"
+                  className="w-[160px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   aria-label={t('bookings.filterByStatus', 'Filter by status')}
                 >
                   <option value="">{t('bookings.allStatuses', 'All statuses')}</option>
@@ -638,7 +677,7 @@ export const BookingView = ({
               <Input 
                 size="md"
                 placeholder={t('bookings.searchPlaceholder', 'Search...')} 
-                className="pl-10 w-full" 
+                className="pl-10 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -749,7 +788,7 @@ export const BookingView = ({
                         type="email"
                         value={form.customerEmail} 
                         onChange={e => setForm({...form, customerEmail: e.target.value})} 
-                        placeholder="email@example.com"
+                        placeholder={t('bookings.step1.emailPlaceholder', 'email@example.com')}
                         className="w-full"
                       />
                     </div>
@@ -761,7 +800,7 @@ export const BookingView = ({
                         type="tel"
                         value={form.customerPhone} 
                         onChange={e => setForm({...form, customerPhone: e.target.value})} 
-                        placeholder="+47 ..."
+                        placeholder={t('bookings.step1.phonePlaceholder', '+47 ...')}
                         className="w-full"
                       />
                     </div>
@@ -1390,13 +1429,13 @@ export const BookingView = ({
                   <ArrowRight size={18} className="ml-2" />
                    </Button>
               )}
-            </div>
+                 </div>
           </div>
         </div>
       )}
 
-      {/* BOOKINGS LIST */}
-      {!showAdd && (
+      {/* BOOKINGS LIST OR CALENDAR */}
+      {!showAdd && viewMode === 'list' && (
         <DataTable
           headers={[
             t('common.id', 'ID'),
@@ -1414,23 +1453,30 @@ export const BookingView = ({
             return (
               <tr 
                 key={b.id} 
-                className="hover:bg-muted/20 transition-colors cursor-pointer group"
+                className="hover:bg-muted/30 transition-colors cursor-pointer group focus-within:bg-muted/40 min-h-[80px]"
                 onClick={() => setSelectedBookingId(b.id)}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedBookingId(b.id);
+                  }
+                }}
               >
-                <td className="px-4 py-3 font-mono text-sm text-muted-foreground">#{b.id.slice(0, 8)}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-5 font-mono text-sm text-foreground/80">#{b.id.slice(0, 8)}</td>
+                <td className="px-4 py-5">
                   <div>
-                    <Text size="sm" weight="medium">{b.customerName}</Text>
-                    {b.companyName && <Text size="xs" muted>{b.companyName}</Text>}
+                    <Text size="base" weight="bold" className="text-foreground">{b.customerName}</Text>
+                    {b.companyName && <Text size="xs" className="text-foreground/70">{b.companyName}</Text>}
                   </div>
                 </td>
-                <td className="px-4 py-3">
-                  <Text size="sm">{room?.number || 'N/A'}</Text>
+                <td className="px-4 py-5">
+                  <Text size="base" weight="medium" className="text-foreground">{room?.number || t('common.notAvailable', 'N/A')}</Text>
                 </td>
-                <td className="px-4 py-3">
-                  <Text size="sm">{b.startDate} - {b.endDate}</Text>
+                <td className="px-4 py-5">
+                  <Text size="base" weight="medium" className="text-foreground">{b.startDate} - {b.endDate}</Text>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-5">
                   <Badge 
                     variant={
                       b.status === BookingStatus.CHECKED_IN ? 'success' : 
@@ -1438,12 +1484,12 @@ export const BookingView = ({
                       b.status === BookingStatus.CHECKED_OUT ? 'secondary' :
                       'outline'
                     }
-                    className="text-xs"
+                    className="text-xs px-2 py-1 font-semibold"
                   >
-                    {b.status.replace('_', ' ')}
+                    {localizeBookingStatus(t, b.status)}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-5 text-right">
                    <Button 
                     size="sm" 
                     variant="ghost"
@@ -1451,7 +1497,7 @@ export const BookingView = ({
                       e.stopPropagation();
                       setSelectedBookingId(b.id);
                     }}
-                    className="text-xs flex items-center gap-1"
+                    className="text-sm flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     {t('common.view', 'View')}
                     <ChevronRight size={14} />
@@ -1461,6 +1507,193 @@ export const BookingView = ({
             );
           })}
         </DataTable>
+      )}
+
+      {/* CALENDAR VIEW */}
+      {!showAdd && viewMode === 'calendar' && (
+        <div className="space-y-4">
+          {/* Calendar Header */}
+          <div className="flex items-center justify-between p-4 bg-white border border-border rounded-lg shadow-token-sm">
+            <Button 
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeekOffset(weekOffset - 1)}
+              className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <ChevronLeft size={16} />
+            </Button>
+            <Text size="lg" weight="bold" className="text-slate-900">
+              {(() => {
+                const today = new Date();
+                const currentDayOfWeek = today.getDay();
+                const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+                const currentMonday = new Date(today);
+                currentMonday.setDate(today.getDate() - daysToMonday + (weekOffset * 7));
+                const currentFriday = new Date(currentMonday);
+                currentFriday.setDate(currentMonday.getDate() + 4);
+                
+                if (i18n.language === 'nb') {
+                  return `${currentMonday.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })} - ${currentFriday.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                } else {
+                  return `${currentMonday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${currentFriday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                }
+              })()}
+            </Text>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeekOffset(weekOffset + 1)}
+              className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="bg-white border border-border rounded-lg shadow-token-sm overflow-hidden">
+            {/* Days Header - Sticky */}
+            <div className="grid grid-cols-[80px_repeat(5,1fr)] border-b-2 border-border bg-muted/40 sticky top-0 z-10">
+              <div className="p-2 border-r border-border bg-muted/50 flex-shrink-0">
+                <Text size="xs" weight="bold" className="uppercase tracking-widest text-foreground">{t('bookings.calendar.time', 'Time')}</Text>
+              </div>
+                  {(() => {
+                    // Get the Monday of the week based on weekOffset
+                    const today = new Date();
+                    const currentDayOfWeek = today.getDay();
+                    const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+                    const currentMonday = new Date(today);
+                    currentMonday.setDate(today.getDate() - daysToMonday + (weekOffset * 7));
+                    
+                    // Get 5 days starting from Monday
+                    const weekDays = Array.from({ length: 5 }, (_, i) => {
+                      const date = new Date(currentMonday);
+                      date.setDate(currentMonday.getDate() + i);
+                      return date;
+                    });
+                    
+                    const dayNames = i18n.language === 'nb' 
+                      ? ['man', 'tir', 'ons', 'tor', 'fre']
+                      : ['mon', 'tue', 'wed', 'thur', 'fri'];
+                    
+                    return weekDays.map((date, idx) => {
+                      const dayNumber = date.getDate();
+                      const isToday = date.toDateString() === new Date().toDateString();
+                      
+                      return (
+                        <div key={idx} className={`p-4 border-r border-border ${isToday ? 'bg-primary/10 border-primary/30' : ''}`}>
+                          <div className="text-center">
+                            <Text size="base" weight="bold" className={`text-foreground block mb-1 ${isToday ? 'text-primary' : ''}`}>{dayNumber}</Text>
+                            <Text size="sm" weight="bold" className={`uppercase ${isToday ? 'text-primary' : 'text-foreground/70'}`}>{dayNames[idx]}</Text>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+
+            {/* Time Slots and Bookings */}
+            <div className="relative">
+              {[5, 6, 7, 8, 9, 10, 11].map(hour => (
+                <div key={hour} className="grid grid-cols-[80px_repeat(5,1fr)] border-b border-border min-h-[120px]">
+                  {/* Time Label */}
+                  <div className="p-2 border-r border-border bg-muted/30 flex-shrink-0">
+                    <Text size="xs" weight="medium" className="text-right text-foreground/80">{hour} {t('bookings.calendar.am', 'am')}</Text>
+                  </div>
+                      
+                      {/* Day Columns */}
+                      {(() => {
+                        // Get the Monday of the week based on weekOffset (same as in header)
+                        const today = new Date();
+                        const currentDayOfWeek = today.getDay();
+                        const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+                        const currentMonday = new Date(today);
+                        currentMonday.setDate(today.getDate() - daysToMonday + (weekOffset * 7));
+                        
+                        const weekDays = Array.from({ length: 5 }, (_, i) => {
+                          const date = new Date(currentMonday);
+                          date.setDate(currentMonday.getDate() + i);
+                          return date;
+                        });
+                        
+                        return weekDays.map((date, dayIdx) => {
+                          const dateStr = date.toISOString().split('T')[0];
+                          
+                          // Find bookings for this date and time slot
+                          const dayBookings = filteredBookings.filter(b => {
+                            const bookingStart = new Date(b.startDate + 'T00:00:00');
+                            const bookingEnd = new Date(b.endDate + 'T00:00:00');
+                            const currentDate = new Date(dateStr + 'T00:00:00');
+                            
+                            // Check if booking spans this date
+                            const isOnDate = currentDate >= bookingStart && currentDate <= bookingEnd;
+                            
+                            if (!isOnDate) return false;
+                            
+                            // For time-based positioning, check if it's the check-in day and matches the hour
+                            const isCheckInDay = currentDate.getTime() === bookingStart.getTime();
+                            if (isCheckInDay && b.checkInTime) {
+                              const checkInHour = parseInt(b.checkInTime.split(':')[0]);
+                              return checkInHour >= hour && checkInHour < hour + 1;
+                            }
+                            
+                            // For non-check-in days or bookings without check-in time, show in first slot
+                            return !isCheckInDay || !b.checkInTime || hour === 5;
+                          });
+
+                          return (
+                            <div key={dayIdx} className="p-2 border-r border-border relative min-h-[120px]">
+                              {dayBookings.map(booking => {
+                                const room = store.getRoomById(booking.roomId);
+                                const nights = Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24));
+                                const meals = (booking as any).meals || [];
+                                const hasMeals = meals.length > 0;
+                              
+                              return (
+                                <Card
+                                  key={booking.id}
+                                  className="p-2 mb-2 border border-border cursor-pointer hover:shadow-md hover:border-primary/50 transition-all bg-white group"
+                                  onClick={() => setSelectedBookingId(booking.id)}
+                                >
+                                  <div className="space-y-1">
+                                    <Text size="xs" weight="bold" className="text-slate-900">{booking.customerName}</Text>
+                                    <Text size="xs" className="text-slate-600">
+                                      {booking.guestCount || 1} {t('bookings.guest', 'guest')}
+                                    </Text>
+                                    {room && (
+                                      <Text size="xs" className="text-slate-600">
+                                        {localizeRoomType(t, room.type)}
+                                      </Text>
+                                    )}
+                                    {hasMeals && (
+                                      <Text size="xs" className="text-emerald-600">+{t('bookings.breakfasts', 'breakfasts')}</Text>
+                                    )}
+                                    <div className="mt-2">
+                                      <Badge
+                                        variant={
+                                          booking.status === BookingStatus.CHECKED_IN ? 'success' :
+                                          booking.status === BookingStatus.CONFIRMED ? 'default' :
+                                          booking.status === BookingStatus.CHECKED_OUT ? 'secondary' :
+                                          booking.status === BookingStatus.CANCELLED ? 'destructive' :
+                                          'outline'
+                                        }
+                                        className="text-[10px]"
+                                      >
+                                        {localizeBookingStatus(t, booking.status)}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </Card>
+                              );
+                            })}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
       )}
 
       {/* BOOKING DETAILS DRAWER */}
@@ -1490,6 +1723,7 @@ const RoomDetailDrawer: React.FC<{
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
   const [blockForm, setBlockForm] = useState({ reason: BlockReason.MAINTENANCE, note: '', expectedReturnAt: '' });
   const [auditLogs, setAuditLogs] = useState<IAuditLog[]>([]);
 
@@ -1556,7 +1790,7 @@ const RoomDetailDrawer: React.FC<{
               type: storeRoom.type || RoomType.SINGLE,
               status: storeRoom.status || RoomStatus.CLEAN,
               occupancyState: roomSummary?.occupancy || RoomOccupancy.FREE,
-              nextEventText: roomSummary?.nextEvent || 'No upcoming events',
+              nextEventText: roomSummary?.nextEvent || t('rooms.noUpcomingEvents', 'No upcoming events'),
               blocked: storeRoom.status === RoomStatus.OUT_OF_SERVICE,
               outlook: outlook,
               outOfServiceReason: storeRoom.outOfServiceReason,
@@ -1602,11 +1836,11 @@ const RoomDetailDrawer: React.FC<{
         <div className="p-4">
           <Text size="sm" className="text-destructive">
             {error}
-          </Text>
+                 </Text>
           <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>
             {t('common.close', 'Close')}
           </Button>
-        </div>
+                    </div>
       </DetailDrawer>
     );
   }
@@ -1616,7 +1850,7 @@ const RoomDetailDrawer: React.FC<{
       <DetailDrawer isOpen={true} onClose={onClose} title={t('common.loading', 'Loading...')}>
         <div className="flex items-center justify-center p-8">
           <Loader2 className="animate-spin text-primary" size={32} />
-        </div>
+                    </div>
       </DetailDrawer>
     );
   }
@@ -1627,11 +1861,11 @@ const RoomDetailDrawer: React.FC<{
         <div className="p-4">
           <Text size="sm" className="text-destructive">
             {t('rooms.roomNotFound', 'Room not found')}
-          </Text>
+                 </Text>
           <Button variant="outline" size="sm" className="mt-4" onClick={onClose}>
             {t('common.close', 'Close')}
           </Button>
-        </div>
+                    </div>
       </DetailDrawer>
     );
   }
@@ -1644,7 +1878,7 @@ const RoomDetailDrawer: React.FC<{
           <Text size="sm" className="text-destructive">
             {t('rooms.roomNotFound', 'Room not found')}
           </Text>
-        </div>
+                      </div>
       </DetailDrawer>
     );
   }
@@ -1784,11 +2018,11 @@ const RoomDetailDrawer: React.FC<{
           <div className="p-4 bg-muted/20 rounded-lg border border-border space-y-2">
             <div className="flex justify-between">
               <Text size="sm" muted>{t('rooms.condition', 'Condition')}</Text>
-              <Text size="sm" weight="medium">{room.status ? room.status.replace('_', ' ') : RoomStatus.CLEAN}</Text>
+              <Text size="sm" weight="medium">{room.status ? localizeRoomCondition(t, room.status) : localizeRoomCondition(t, RoomStatus.CLEAN)}</Text>
                     </div>
             <div className="flex justify-between">
               <Text size="sm" muted>{t('rooms.occupancy', 'Occupancy')}</Text>
-              <Text size="sm" weight="medium">{room.occupancyState || RoomOccupancy.FREE}</Text>
+              <Text size="sm" weight="medium">{room.occupancyState ? localizeRoomOccupancy(t, room.occupancyState) : localizeRoomOccupancy(t, RoomOccupancy.FREE)}</Text>
             </div>
             {room.status === RoomStatus.OUT_OF_SERVICE && (
               <div className="p-2 bg-rose-50 border border-rose-200 rounded text-rose-800 text-sm mt-2">
@@ -1801,7 +2035,7 @@ const RoomDetailDrawer: React.FC<{
 
         {/* B) Outlook (Compact Timeline) */}
         <section className="space-y-4">
-          <Text size="sm" weight="bold" muted className="uppercase tracking-widest">{t('rooms.outlook7Days', 'Outlook (7 Days)')}</Text>
+          <Text size="sm" weight="bold" muted className="uppercase tracking-widest">{t('rooms.outlook7Days', 'OUTLOOK (7 DAYS)')}</Text>
           <div className="space-y-2">
             {(room.outlook || []).slice(0, 7).map((day: any) => (
               <div key={day.date} className="flex items-center gap-3 text-sm p-2 border border-border rounded-md">
@@ -1810,14 +2044,14 @@ const RoomDetailDrawer: React.FC<{
                   {day.reservations && day.reservations.length > 0 ? (
                     day.reservations.map((res: any) => (
                       <Badge key={res.id} variant="outline" className="mr-1 bg-blue-50 text-blue-700 border-blue-200">
-                        {res.status}
+                        {localizeBookingStatus(t, res.status)}
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-muted-foreground opacity-50">{t('rooms.free', 'Free')}</span>
+                    <span className="text-muted-foreground opacity-50">{localizeRoomOccupancy(t, RoomOccupancy.FREE)}</span>
                   )}
-                </div>
-              </div>
+                      </div>
+                    </div>
             ))}
           </div>
         </section>
@@ -1868,7 +2102,7 @@ const RoomDetailDrawer: React.FC<{
               </>
             )}
             
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setShowCreateTicketModal(true)}>
               <Plus size={16} className="mr-2" />
               {t('maintenance.createTicket', 'Create Ticket')}
             </Button>
@@ -1879,7 +2113,7 @@ const RoomDetailDrawer: React.FC<{
         <details className="space-y-4 group">
           <summary className="cursor-pointer list-none">
             <div className="flex items-center justify-between py-2">
-              <Text size="sm" weight="bold" muted className="uppercase tracking-widest">{t('common.auditTrail', 'Audit Trail')}</Text>
+              <Text size="sm" weight="bold" muted className="uppercase tracking-widest">{t('common.auditTrail', 'AUDIT TRAIL')}</Text>
               <ChevronDown size={16} className="transform group-open:rotate-180 transition-transform text-muted-foreground" />
             </div>
           </summary>
@@ -1909,7 +2143,7 @@ const RoomDetailDrawer: React.FC<{
                 value={blockForm.reason} 
                 onChange={e => setBlockForm({...blockForm, reason: e.target.value as BlockReason})}
               >
-                {Object.values(BlockReason).map(r => <option key={r} value={r}>{r}</option>)}
+                {Object.values(BlockReason).map(r => <option key={r} value={r}>{localizeBlockReason(t, r)}</option>)}
               </Select>
             </div>
             <div>
@@ -1935,6 +2169,19 @@ const RoomDetailDrawer: React.FC<{
           </div>
         </Modal>
       )}
+      
+      {/* Create Ticket Modal */}
+      {showCreateTicketModal && (
+        <CreateTicketModal
+          userRole={userRole}
+          initialUnitId={roomId}
+          onClose={() => setShowCreateTicketModal(false)}
+          onCreated={() => {
+            setShowCreateTicketModal(false);
+            onUpdate();
+          }}
+        />
+      )}
     </>
   );
 };
@@ -1945,6 +2192,68 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
   const [tick, setTick] = useState(0);
   const [summaries, setSummaries] = useState<IRoomSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = previous week, +1 = next week
+  
+  // Helper to localize nextEvent messages
+  const localizeNextEvent = (nextEvent: string): string => {
+    if (!nextEvent) return t('rooms.noUpcomingEvents', 'No upcoming events');
+    
+    // Pattern matching for various event messages
+    if (nextEvent.startsWith('Departing today')) {
+      const timeMatch = nextEvent.match(/\((\d{2}:\d{2})\)/);
+      const time = timeMatch?.[1] || '11:00';
+      return t('rooms.departingToday', 'Departing today') + ` (${time})`;
+    }
+    if (nextEvent.startsWith('Checkout today')) {
+      const time = nextEvent.match(/\d{2}:\d{2}/)?.[0] || '11:00';
+      return t('rooms.checkoutToday', 'Checkout today') + ` ${time}`;
+    }
+    if (nextEvent.startsWith('Checkout in')) {
+      const daysMatch = nextEvent.match(/Checkout in (\d+) day\(s\)/);
+      const days = daysMatch?.[1] || '0';
+      return t('rooms.checkoutInDays', 'Checkout in {{days}} day(s)', { days });
+    }
+    if (nextEvent.startsWith('Occupied until')) {
+      const date = nextEvent.replace('Occupied until ', '');
+      return t('rooms.occupiedUntil', 'Occupied until') + ` ${date}`;
+    }
+    if (nextEvent.startsWith('Arrival today')) {
+      const timeMatch = nextEvent.match(/\((\d{2}:\d{2})\)/);
+      if (timeMatch) {
+        const time = timeMatch[1];
+        return t('rooms.arrivalToday', 'Arrival today') + ` (${time})`;
+      }
+      const time = nextEvent.match(/\d{2}:\d{2}/)?.[0] || '15:00';
+      return t('rooms.arrivalToday', 'Arrival today') + ` ${time}`;
+    }
+    if (nextEvent.startsWith('Arrival in')) {
+      const daysMatch = nextEvent.match(/Arrival in (\d+) day\(s\)/);
+      const days = daysMatch?.[1] || '0';
+      return t('rooms.arrivalInDays', 'Arrival in {{days}} day(s)', { days });
+    }
+    if (nextEvent.startsWith('Reserved from')) {
+      const date = nextEvent.replace('Reserved from ', '');
+      return t('rooms.reservedFrom', 'Reserved from') + ` ${date}`;
+    }
+    if (nextEvent.startsWith('Next arrival:')) {
+      const date = nextEvent.replace('Next arrival: ', '');
+      return t('rooms.nextArrival', 'Next arrival:') + ` ${date}`;
+    }
+    if (nextEvent === 'Available for 7+ days') {
+      return t('rooms.availableFor7Days', 'Available for 7+ days');
+    }
+    if (nextEvent.startsWith('Blocked:')) {
+      const reason = nextEvent.replace('Blocked: ', '');
+      return t('rooms.blocked', 'Blocked:') + ` ${reason}`;
+    }
+    if (nextEvent === 'No upcoming events') {
+      return t('rooms.noUpcomingEvents', 'No upcoming events');
+    }
+    
+    // Fallback: return as-is if no pattern matches
+    return nextEvent;
+  };
   
   // Filters
   const [filters, setFilters] = useState({
@@ -1988,7 +2297,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
             type: r.type,
             status: r.status,
             occupancy: r.occupancy || RoomOccupancy.FREE,
-            nextEvent: r.nextEvent || 'No upcoming events',
+            nextEvent: r.nextEvent || t('rooms.noUpcomingEvents', 'No upcoming events'),
             blocked: r.status === RoomStatus.OUT_OF_SERVICE,
             hasMaintenance: r.hasMaintenance || false,
             hasHousekeeping: r.hasHousekeeping || false
@@ -2011,7 +2320,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
           type: r.type,
           status: r.status,
           occupancy: r.occupancyState,
-          nextEvent: r.nextEventText || 'No upcoming events',
+          nextEvent: r.nextEventText || t('rooms.noUpcomingEvents', 'No upcoming events'),
           blocked: r.blocked,
           hasMaintenance: r.hasOpenMaintenance,
           hasHousekeeping: r.hasHousekeepingDue
@@ -2109,12 +2418,38 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
       <PageHeader 
         title={t('rooms.title', 'Rooms')}
         subtitle={t('rooms.subtitle', 'Room availability and operational status')}
-        actions={isAdmin && (
-          <Button variant="primary" size="sm" className="flex items-center gap-2">
-            <Plus size={16} />
-            {t('rooms.addRoom', 'Add Room')}
-          </Button>
-        )}
+        actions={
+          <div className="flex items-center gap-3">
+            {/* View Toggle Buttons */}
+            <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg border border-border">
+              <Button
+                variant={viewMode === 'list' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <FileText size={16} className="mr-2" />
+                {t('bookings.viewList', 'List')}
+              </Button>
+              <Button
+                variant={viewMode === 'calendar' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('calendar')}
+                className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <Calendar size={16} className="mr-2" />
+                {t('bookings.viewCalendar', 'Calendar')}
+              </Button>
+            </div>
+            {/* Add Room Button */}
+            {isAdmin && (
+              <Button variant="primary" size="sm" className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <Plus size={16} />
+                {t('rooms.addRoom', 'Add Room')}
+              </Button>
+            )}
+          </div>
+        }
       />
 
       {/* FILTER BAR */}
@@ -2128,7 +2463,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                 size="md"
                 value={filters.date} 
                 onChange={e => setFilters({...filters, date: e.target.value})}
-                className="w-36 flex-shrink-0"
+                className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={t('common.date', 'Date')}
                 />
               </div>
@@ -2141,16 +2476,13 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                 size="md"
                 value={filters.status} 
                 onChange={e => setFilters({...filters, status: e.target.value as RoomStatus})}
-                className="w-[140px] flex-shrink-0"
+                className="w-[140px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={t('rooms.condition', 'Condition')}
               >
-                <option value="">{t('common.all', 'All')}</option>
+                <option value="">{t('common.all', 'ALL')}</option>
                 {Object.values(RoomStatus).map(s => (
                   <option key={s} value={s}>
-                    {s === RoomStatus.CLEAN ? t('rooms.clean', 'CLEAN') :
-                     s === RoomStatus.DIRTY ? t('rooms.dirty', 'DIRTY') :
-                     s === RoomStatus.OUT_OF_SERVICE ? t('rooms.outOfService', 'OUT OF SERVICE') :
-                     s.replace('_', ' ')}
+                    {localizeRoomCondition(t, s)}
                   </option>
                 ))}
               </Select>
@@ -2162,17 +2494,13 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                 size="md"
                 value={filters.occupancy} 
                 onChange={e => setFilters({...filters, occupancy: e.target.value as RoomOccupancy})}
-                className="w-[140px] flex-shrink-0"
+                className="w-[140px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={t('rooms.occupancy', 'Occupancy')}
               >
-                <option value="">{t('common.all', 'All')}</option>
+                <option value="">{t('common.all', 'ALL')}</option>
                 {Object.values(RoomOccupancy).map(o => (
                   <option key={o} value={o}>
-                    {o === RoomOccupancy.FREE ? t('rooms.free', 'FREE') :
-                     o === RoomOccupancy.RESERVED ? t('rooms.reserved', 'RESERVED') :
-                     o === RoomOccupancy.OCCUPIED ? t('rooms.occupied', 'OCCUPIED') :
-                     o === RoomOccupancy.DEPARTING ? t('rooms.departing', 'DEPARTING') :
-                     o}
+                    {localizeRoomOccupancy(t, o)}
                   </option>
                 ))}
               </Select>
@@ -2184,16 +2512,13 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                 size="md"
                 value={filters.type} 
                 onChange={e => setFilters({...filters, type: e.target.value as RoomType})}
-                className="w-[140px] flex-shrink-0"
+                className="w-[140px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={t('rooms.type', 'Type')}
               >
-                <option value="">{t('common.all', 'All')}</option>
+                <option value="">{t('common.all', 'ALL')}</option>
                 {Object.values(RoomType).map(type => (
                   <option key={type} value={type}>
-                    {type === RoomType.SINGLE ? t('rooms.typeSingle', 'Single') :
-                     type === RoomType.DOUBLE ? t('rooms.typeDouble', 'Double') :
-                     type === RoomType.APARTMENT ? t('rooms.typeApartment', 'Apartment') :
-                     type}
+                    {localizeRoomType(t, type)}
                   </option>
                 ))}
               </Select>
@@ -2208,7 +2533,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
               placeholder={t('rooms.searchUnit', 'Search room number...')}
               value={filters.search}
               onChange={e => setFilters({...filters, search: e.target.value})}
-              className="pl-10 w-full"
+              className="pl-10 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
         }
@@ -2217,7 +2542,8 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
         } : undefined}
       />
 
-      {/* ROOMS TABLE */}
+      {/* ROOMS LIST VIEW */}
+      {viewMode === 'list' && (
       <DataTable
         headers={[
           t('rooms.room', 'Room'),
@@ -2233,45 +2559,225 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
         {filteredRooms.map(room => (
           <tr 
             key={room.id} 
-            className="hover:bg-muted/20 transition-colors cursor-pointer group"
+            className="hover:bg-muted/30 transition-colors cursor-pointer group focus-within:bg-muted/40 min-h-[64px]"
             onClick={() => setSelectedRoomId(room.id)}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelectedRoomId(room.id);
+              }
+            }}
           >
-            <td className="px-4 py-3">
-              <Text weight="bold" size="base">{room.number}</Text>
+            <td className="px-4 py-4">
+              <Text weight="bold" size="base" className="text-slate-900">{room.number}</Text>
             </td>
-            <td className="px-4 py-3">
-              <Text size="sm" muted>{room.type}</Text>
+            <td className="px-4 py-4">
+              <Text size="sm" className="text-slate-700">{localizeRoomType(t, room.type)}</Text>
             </td>
-            <td className="px-4 py-3">
+            <td className="px-4 py-4">
               <Badge variant="outline" className={`text-[10px] ${conditionColor(room.status)}`}>
-                {room.status.replace('_', ' ')}
+                {localizeRoomCondition(t, room.status)}
               </Badge>
             </td>
-            <td className="px-4 py-3">
+            <td className="px-4 py-4">
               <Badge variant="outline" className={`text-[10px] ${occupancyColor(room.occupancy as RoomOccupancy)}`}>
-                {room.occupancy}
+                {localizeRoomOccupancy(t, room.occupancy)}
               </Badge>
             </td>
-            <td className="px-4 py-3">
-              <Text size="sm" muted>{room.nextEvent}</Text>
+            <td className="px-4 py-4">
+              <Text size="sm" className="text-slate-700">{localizeNextEvent(room.nextEvent)}</Text>
             </td>
-            <td className="px-4 py-3 text-right">
-                  <Button
+            <td className="px-4 py-4 text-right">
+                <Button
                 variant="ghost" 
-                    size="sm"
+                  size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedRoomId(room.id);
                 }}
-                className="text-xs flex items-center gap-1"
+                className="text-xs flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {t('common.view', 'View')}
                 <ChevronRight size={14} />
-                  </Button>
+                </Button>
             </td>
           </tr>
         ))}
       </DataTable>
+      )}
+
+      {/* ROOMS CALENDAR VIEW */}
+      {viewMode === 'calendar' && (
+        <div className="space-y-4">
+          {/* Calendar Header */}
+          <div className="flex items-center justify-between p-4 bg-white border border-border rounded-lg shadow-token-sm">
+            <Button 
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeekOffset(weekOffset - 1)}
+              className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <ChevronLeft size={16} />
+            </Button>
+            <Text size="lg" weight="bold" className="text-slate-900">
+              {(() => {
+                const today = new Date();
+                const currentDayOfWeek = today.getDay();
+                const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+                const currentMonday = new Date(today);
+                currentMonday.setDate(today.getDate() - daysToMonday + (weekOffset * 7));
+                const currentFriday = new Date(currentMonday);
+                currentFriday.setDate(currentMonday.getDate() + 4);
+                
+                if (i18n.language === 'nb') {
+                  return `${currentMonday.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })} - ${currentFriday.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                } else {
+                  return `${currentMonday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${currentFriday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                }
+              })()}
+            </Text>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeekOffset(weekOffset + 1)}
+              className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="bg-white border border-border rounded-lg shadow-token-sm overflow-hidden">
+            {/* Days Header - Sticky */}
+            <div className="grid grid-cols-[200px_repeat(5,1fr)] border-b-2 border-border bg-muted/40 sticky top-0 z-10">
+              <div className="p-4 border-r border-border bg-muted/50 flex-shrink-0">
+                <Text size="xs" weight="bold" className="uppercase tracking-widest text-foreground">{t('rooms.room', 'Room')}</Text>
+              </div>
+              {(() => {
+                // Get the Monday of the week based on weekOffset
+                const today = new Date();
+                const currentDayOfWeek = today.getDay();
+                const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+                const currentMonday = new Date(today);
+                currentMonday.setDate(today.getDate() - daysToMonday + (weekOffset * 7));
+                
+                // Get 5 days starting from Monday
+                const weekDays = Array.from({ length: 5 }, (_, i) => {
+                  const date = new Date(currentMonday);
+                  date.setDate(currentMonday.getDate() + i);
+                  return date;
+                });
+                
+                const dayNames = i18n.language === 'nb' 
+                  ? ['man', 'tir', 'ons', 'tor', 'fre']
+                  : ['mon', 'tue', 'wed', 'thur', 'fri'];
+                
+                return weekDays.map((date, idx) => {
+                  const dayNumber = date.getDate();
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  
+                  return (
+                    <div key={idx} className={`p-4 border-r border-border ${isToday ? 'bg-primary/10 border-primary/30' : ''}`}>
+                      <div className="text-center">
+                        <Text size="base" weight="bold" className={`text-foreground block mb-1 ${isToday ? 'text-primary' : ''}`}>{dayNumber}</Text>
+                        <Text size="sm" weight="bold" className={`uppercase ${isToday ? 'text-primary' : 'text-foreground/70'}`}>{dayNames[idx]}</Text>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* Rooms Rows */}
+            <div className="relative">
+              {filteredRooms.map(room => {
+                // Get the Monday of the week based on weekOffset
+                const today = new Date();
+                const currentDayOfWeek = today.getDay();
+                const daysToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+                const currentMonday = new Date(today);
+                currentMonday.setDate(today.getDate() - daysToMonday + (weekOffset * 7));
+                
+                const weekDays = Array.from({ length: 5 }, (_, i) => {
+                  const date = new Date(currentMonday);
+                  date.setDate(currentMonday.getDate() + i);
+                  return date;
+                });
+
+                return (
+                  <div key={room.id} className="grid grid-cols-[200px_repeat(5,1fr)] border-b border-border min-h-[80px] hover:bg-muted/10 transition-colors">
+                    {/* Room Info */}
+                    <div 
+                      className="p-4 border-r border-border bg-muted/30 flex items-center gap-2 cursor-pointer"
+                      onClick={() => setSelectedRoomId(room.id)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <Text weight="bold" size="base" className="text-foreground mb-1">{room.number}</Text>
+                        <Text size="sm" weight="medium" className="text-foreground/70 mb-2">{localizeRoomType(t, room.type)}</Text>
+                        <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${conditionColor(room.status)}`}>
+                          {localizeRoomCondition(t, room.status)}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    {/* Day Columns */}
+                    {weekDays.map((date, dayIdx) => {
+                      const dateStr = date.toISOString().split('T')[0];
+                      const isToday = date.toDateString() === new Date().toDateString();
+                      
+                      // Get bookings for this room and date
+                      const bookings = store.getBookings().filter(b => {
+                        if (b.roomId !== room.id) return false;
+                        const bookingStart = new Date(b.startDate + 'T00:00:00');
+                        const bookingEnd = new Date(b.endDate + 'T00:00:00');
+                        const currentDate = new Date(dateStr + 'T00:00:00');
+                        return currentDate >= bookingStart && currentDate <= bookingEnd;
+                      });
+
+                      const hasBooking = bookings.length > 0;
+                      const booking = bookings[0];
+                      
+                      return (
+                        <div 
+                          key={dayIdx} 
+                          className={`p-2 border-r border-border relative min-h-[80px] ${isToday ? 'bg-primary/5' : ''} cursor-pointer hover:bg-muted/20 transition-colors`}
+                          onClick={() => setSelectedRoomId(room.id)}
+                        >
+                          {hasBooking && booking ? (
+                            <Card className="p-3 border border-border cursor-pointer hover:shadow-md hover:border-primary/50 transition-all bg-white h-full">
+                              <div className="space-y-2">
+                                <Text size="sm" weight="bold" className="text-foreground truncate">{booking.customerName}</Text>
+                                <Badge
+                                  variant={
+                                    booking.status === BookingStatus.CHECKED_IN ? 'success' :
+                                    booking.status === BookingStatus.CONFIRMED ? 'default' :
+                                    booking.status === BookingStatus.CHECKED_OUT ? 'secondary' :
+                                    'outline'
+                                  }
+                                  className="text-xs px-2 py-1 font-semibold"
+                                >
+                                  {localizeBookingStatus(t, booking.status)}
+                                </Badge>
+                              </div>
+                            </Card>
+                          ) : (
+                            <div className="h-full flex items-center justify-center">
+                              <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${occupancyColor(room.occupancy as RoomOccupancy)}`}>
+                                {localizeRoomOccupancy(t, room.occupancy)}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ROOM DETAIL DRAWER */}
       {selectedRoomId && (
@@ -2425,13 +2931,13 @@ const InvoiceDetailDrawer: React.FC<{
         actions={
           <div className="flex items-center gap-3">
             <Badge variant="outline" className={getStatusColor(invoice.status)}>
-              {invoice.status}
+              {localizeInvoiceStatus(t, invoice.status)}
             </Badge>
             {invoice.issuedAt && (
-              <Text size="xs" muted>Issued: {new Date(invoice.issuedAt).toLocaleDateString()}</Text>
+              <Text size="xs" muted>{t('billing.issued', 'Issued')}: {new Date(invoice.issuedAt).toLocaleDateString()}</Text>
             )}
             {invoice.dueDate && (
-              <Text size="xs" muted>Due: {new Date(invoice.dueDate).toLocaleDateString()}</Text>
+              <Text size="xs" muted>{t('billing.due', 'Due')}: {new Date(invoice.dueDate).toLocaleDateString()}</Text>
             )}
           </div>
         }
@@ -2441,11 +2947,11 @@ const InvoiceDetailDrawer: React.FC<{
           <Text size="sm" weight="bold" className="mb-2">{t('billing.references', 'References')}</Text>
           <div className="space-y-1">
             <div className="flex justify-between">
-              <Text size="xs" muted>Reference 1:</Text>
+              <Text size="xs" muted>{t('billing.reference1', 'Reference 1')}:</Text>
               <Text size="xs" weight="medium" className="text-right">{invoice.reference1 || '-'}</Text>
             </div>
             <div className="flex justify-between">
-              <Text size="xs" muted>Reference 2:</Text>
+              <Text size="xs" muted>{t('billing.reference2', 'Reference 2')}:</Text>
               <Text size="xs" weight="medium" className="text-right">{invoice.reference2 || '-'}</Text>
             </div>
           </div>
@@ -2462,10 +2968,10 @@ const InvoiceDetailDrawer: React.FC<{
                   <Text size="sm" weight="bold" className="text-right ml-3">{invoice.currency} {line.lineTotal.toLocaleString()}</Text>
                 </div>
                 <div className="flex gap-3 text-xs text-slate-500">
-                  <span>Qty: {line.quantity}</span>
-                  <span>Price: {line.unitPrice.toLocaleString()}</span>
-                  <span>VAT: {line.vatCode}</span>
-                  <span className="ml-auto">VAT: {line.vatAmount.toLocaleString()}</span>
+                  <span>{t('billing.qty', 'Qty')}: {line.quantity}</span>
+                  <span>{t('billing.price', 'Price')}: {line.unitPrice.toLocaleString()}</span>
+                  <span>{t('billing.vat', 'VAT')}: {line.vatCode}</span>
+                  <span className="ml-auto">{t('billing.vat', 'VAT')}: {line.vatAmount.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -2475,15 +2981,15 @@ const InvoiceDetailDrawer: React.FC<{
         {/* Totals & VAT Summary Section */}
         <div className="p-3 bg-muted/30 rounded-lg border-2 border-border space-y-2">
           <div className="flex justify-between">
-            <Text size="sm" muted>Subtotal:</Text>
+            <Text size="sm" muted>{t('billing.subtotal', 'Subtotal')}:</Text>
             <Text size="sm" weight="medium" className="text-right">{invoice.currency} {invoice.subtotal.toLocaleString()}</Text>
           </div>
           <div className="flex justify-between">
-            <Text size="sm" muted>VAT Total:</Text>
+            <Text size="sm" muted>{t('billing.vatTotal', 'VAT (15%)')}:</Text>
             <Text size="sm" weight="medium" className="text-right">{invoice.currency} {invoice.vatTotal.toLocaleString()}</Text>
           </div>
           <div className="flex justify-between pt-2 border-t-2 border-border">
-            <Text size="lg" weight="bold">Total:</Text>
+            <Text size="lg" weight="bold">{t('billing.total', 'Total')}:</Text>
             <Text size="lg" weight="bold" className="text-right">{invoice.currency} {invoice.total.toLocaleString()}</Text>
           </div>
         </div>
@@ -2500,7 +3006,7 @@ const InvoiceDetailDrawer: React.FC<{
                 {payments.map(payment => (
                   <div key={payment.id} className="p-2 bg-muted/30 rounded border-2 border-border">
                     <div className="flex justify-between items-center">
-                      <Text size="xs" weight="medium">{payment.method} - {payment.status}</Text>
+                      <Text size="xs" weight="medium">{localizePaymentMethod(t, payment.method)} - {t(`billing.paymentStatusValues.${payment.status.toLowerCase()}`, payment.status)}</Text>
                       <Text size="xs" weight="bold" className="text-right">{payment.currency} {payment.amount.toLocaleString()}</Text>
                     </div>
                     {payment.externalRef && (
@@ -2552,9 +3058,9 @@ const InvoiceDetailDrawer: React.FC<{
             )}
             
             {canExport && invoice.status !== InvoiceStatus.DRAFT && invoice.status !== InvoiceStatus.VOID && (
-              <Button
+                  <Button
                 variant="outline" 
-                size="sm"
+                    size="sm"
                 onClick={handleExportToVisma}
                 disabled={isExporting || latestExport?.status === AccountingExportStatus.PENDING}
               >
@@ -2569,10 +3075,10 @@ const InvoiceDetailDrawer: React.FC<{
                     {t('billing.exportToVisma', 'Export to Visma')}
                   </>
                 )}
-              </Button>
+                  </Button>
             )}
-          </div>
-        </div>
+              </div>
+            </div>
         
         {/* Actions */}
         {canEdit && (
@@ -2605,8 +3111,8 @@ const InvoiceDetailDrawer: React.FC<{
           </Text>
           <Text size="xs" muted>
             {t('billing.updatedAt', 'Updated')}: {new Date(invoice.updatedAt).toLocaleString()}
-          </Text>
-        </div>
+                </Text>
+              </div>
       </DetailDrawer>
       
       {/* Payment Link Modal */}
@@ -2694,8 +3200,8 @@ const CreateInvoiceModal: React.FC<{
       setIsCreating(false);
     }
   };
-  
-  return (
+                    
+                    return (
     <Modal isOpen={true} onClose={onClose} title={t('billing.createFromGroup', 'Create Invoice from Group')}>
       <div className="space-y-4">
         {/* Step indicator */}
@@ -2736,9 +3242,9 @@ const CreateInvoiceModal: React.FC<{
                         <div>
                           <Text size="sm" weight="bold">{groupName}</Text>
                           <Text size="xs" muted>
-                            {primaryBooking?.customerName || 'Unknown'} • {groupReservations.length} bookings
+                            {primaryBooking?.customerName || t('common.unknown', 'Unknown')} • {groupReservations.length} {t('billing.bookings', 'bookings')}
                               </Text>
-                        </div>
+                            </div>
                         <ChevronRight size={16} className="text-muted-foreground" />
                       </div>
                     </Card>
@@ -2755,14 +3261,14 @@ const CreateInvoiceModal: React.FC<{
             {/* Group Info */}
             <Card className="p-3 border border-border bg-muted/30">
               <Text size="sm" weight="bold">{selectedGroupName}</Text>
-              <Text size="xs" muted>{groupBookings[0]?.customerName || 'Unknown'} • {groupBookings.length} reservations</Text>
+              <Text size="xs" muted>{groupBookings[0]?.customerName || t('common.unknown', 'Unknown')} • {groupBookings.length} {t('billing.reservations', 'reservations')}</Text>
             </Card>
             
             {/* Reservations */}
             <div>
               <Text size="sm" weight="bold" className="mb-2">
                 {t('billing.reservationsIncluded', 'Reservations')} ({groupBookings.length})
-                            </Text>
+                              </Text>
               <div className="space-y-1 max-h-28 overflow-y-auto border border-border rounded-lg p-2">
                 {groupBookings.map(booking => {
                   const room = store.getRooms().find(r => r.id === booking.roomId);
@@ -2772,8 +3278,8 @@ const CreateInvoiceModal: React.FC<{
                   
                   return (
                     <Text key={booking.id} size="xs" muted>
-                      Room {room?.number || booking.roomId} • {nights} nights • {booking.startDate} to {booking.endDate}
-                            </Text>
+                      {t('billing.room', 'Room')} {room?.number || booking.roomId} • {nights} {t('billing.nights', 'nights')} • {booking.startDate} {t('common.to', 'to')} {booking.endDate}
+                                </Text>
                   );
                 })}
                       </div>
@@ -2790,15 +3296,15 @@ const CreateInvoiceModal: React.FC<{
                     const item = store.getKitchenItems().find(i => i.id === order.kitchenItemId);
                     return (
                       <Text key={order.id} size="xs" muted>
-                        {item?.name || order.kitchenItemId} × {order.quantity} = NOK {((item?.unitPrice || 0) * order.quantity).toLocaleString()}
+                        {item ? localizeKitchenItemName(t, item.id, item.name) : order.kitchenItemId} × {order.quantity} = {t('common.currency', 'NOK')} {((item?.unitPrice || 0) * order.quantity).toLocaleString()}
                       </Text>
                     );
                   })}
                   {mealOrders.length > 5 && (
-                    <Text size="xs" muted>...and {mealOrders.length - 5} more</Text>
+                    <Text size="xs" muted>{t('billing.andMore', '...and {{count}} more', { count: mealOrders.length - 5 })}</Text>
                             )}
                           </div>
-              </div>
+                            </div>
             )}
             
             {/* References */}
@@ -2810,10 +3316,10 @@ const CreateInvoiceModal: React.FC<{
                   size="md"
                   value={form.reference1}
                   onChange={e => setForm({...form, reference1: e.target.value})}
-                  placeholder="e.g. PO-12345"
+                  placeholder={t('billing.reference1Placeholder', 'e.g. PO-12345')}
                   className="mt-1"
                 />
-              </div>
+                            </div>
               <div>
                 <Label htmlFor="reference2" required>{t('billing.reference2', 'Reference 2')}</Label>
                 <Input
@@ -2821,11 +3327,11 @@ const CreateInvoiceModal: React.FC<{
                   size="md"
                   value={form.reference2}
                   onChange={e => setForm({...form, reference2: e.target.value})}
-                  placeholder="e.g. Project-ABC"
+                  placeholder={t('billing.reference2Placeholder', 'e.g. Project-ABC')}
                   className="mt-1"
                 />
-              </div>
-            </div>
+                      </div>
+                            </div>
             
             {/* Nightly Rate */}
             <div>
@@ -2838,30 +3344,30 @@ const CreateInvoiceModal: React.FC<{
                 onChange={e => setForm({...form, nightlyRate: parseFloat(e.target.value) || 0})}
                 className="mt-1"
               />
-            </div>
+                            </div>
             
             {/* Totals */}
             <Card className="p-4 border border-border bg-muted/30">
               <div className="space-y-1">
                 <div className="flex justify-between">
                   <Text size="sm" muted>{t('billing.roomCharges', 'Room Charges')}</Text>
-                  <Text size="sm">NOK {roomTotal.toLocaleString()}</Text>
+                  <Text size="sm">{t('common.currency', 'NOK')} {roomTotal.toLocaleString()}</Text>
                 </div>
                 <div className="flex justify-between">
                   <Text size="sm" muted>{t('billing.mealCharges', 'Meal Charges')}</Text>
-                  <Text size="sm">NOK {mealTotal.toLocaleString()}</Text>
+                  <Text size="sm">{t('common.currency', 'NOK')} {mealTotal.toLocaleString()}</Text>
                 </div>
                 <div className="flex justify-between">
                   <Text size="sm" muted>{t('billing.subtotal', 'Subtotal')}</Text>
-                  <Text size="sm" weight="medium">NOK {subtotal.toLocaleString()}</Text>
+                  <Text size="sm" weight="medium">{t('common.currency', 'NOK')} {subtotal.toLocaleString()}</Text>
                 </div>
                 <div className="flex justify-between">
                   <Text size="sm" muted>{t('billing.vatTotal', 'VAT (15%)')}</Text>
-                  <Text size="sm">NOK {vatTotal.toLocaleString()}</Text>
+                  <Text size="sm">{t('common.currency', 'NOK')} {vatTotal.toLocaleString()}</Text>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-border">
                   <Text size="lg" weight="bold">{t('billing.total', 'Total')}</Text>
-                  <Text size="lg" weight="bold">NOK {total.toLocaleString()}</Text>
+                  <Text size="lg" weight="bold">{t('common.currency', 'NOK')} {total.toLocaleString()}</Text>
                 </div>
               </div>
             </Card>
@@ -2889,9 +3395,9 @@ const CreateInvoiceModal: React.FC<{
                 t('billing.createDraftInvoice', 'Create Draft Invoice')
               )}
             </Button>
-          )}
-        </div>
-      </div>
+                            )}
+                          </div>
+                      </div>
     </Modal>
   );
 };
@@ -2945,7 +3451,7 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
   };
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Header */}
       <PageHeader
         title={t('billing.title', 'Billing & Invoicing')}
@@ -2954,7 +3460,7 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
           <Button 
             variant="primary" 
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Plus size={16} />
             {t('billing.createFromGroup', 'Create from Group')}
@@ -2973,12 +3479,12 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
                 size="md"
                 value={filters.status}
                 onChange={e => setFilters({...filters, status: e.target.value as InvoiceStatus | ''})}
-                className="w-[140px] flex-shrink-0"
+                className="w-[140px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={t('common.status', 'Status')}
               >
-                <option value="">{t('common.all', 'All')}</option>
+                <option value="">{t('common.all', 'ALL')}</option>
                 {Object.values(InvoiceStatus).map(s => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>{localizeInvoiceStatus(t, s)}</option>
                 ))}
               </Select>
             </div>
@@ -2993,7 +3499,7 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
                 size="md"
                 value={filters.from}
                 onChange={e => setFilters({...filters, from: e.target.value})}
-                className="w-36 flex-shrink-0"
+                className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={t('billing.fromDate', 'From')}
               />
               <Text size="sm" muted className="flex-shrink-0">-</Text>
@@ -3003,7 +3509,7 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
                 size="md"
                 value={filters.to}
                 onChange={e => setFilters({...filters, to: e.target.value})}
-                className="w-36 flex-shrink-0"
+                className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={t('billing.toDate', 'To')}
               />
             </div>
@@ -3017,12 +3523,12 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
                 size="md"
                 value={filters.exportStatus}
                 onChange={e => setFilters({...filters, exportStatus: e.target.value as AccountingExportStatus | ''})}
-                className="w-[140px] flex-shrink-0"
+                className="w-[140px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={t('billing.exportStatus', 'Export')}
               >
-                <option value="">{t('common.all', 'All')}</option>
+                <option value="">{t('common.all', 'ALL')}</option>
                 {Object.values(AccountingExportStatus).map(s => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>{localizeExportStatus(t, s)}</option>
                 ))}
               </Select>
             </div>
@@ -3034,7 +3540,7 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
                   type="checkbox"
                   checked={filters.unpaid}
                   onChange={e => setFilters({...filters, unpaid: e.target.checked})}
-                  className="rounded w-4 h-4 cursor-pointer flex-shrink-0"
+                  className="rounded w-4 h-4 cursor-pointer flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
                 <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('billing.unpaidOnly', 'Unpaid only')}</Text>
               </label>
@@ -3049,7 +3555,7 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
               placeholder={t('billing.searchPlaceholder', 'Invoice, customer...')}
               value={filters.search}
               onChange={e => setFilters({...filters, search: e.target.value})}
-              className="pl-10 w-full"
+              className="pl-10 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
         }
@@ -3078,52 +3584,59 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
           const payments = store.getPaymentsByInvoice(invoice.id);
           const exportRecord = getExportStatus(invoice.id);
           const hasPayment = payments.length > 0;
-          const paymentStatus = payments.find(p => p.status === PaymentStatus.SUCCEEDED) ? 'Paid' : 
-                               payments.find(p => p.status === PaymentStatus.PENDING) ? 'Pending' : 'None';
+          const paymentStatus = payments.find(p => p.status === PaymentStatus.SUCCEEDED) ? t('billing.paymentStatusValues.paid', 'Paid') : 
+                               payments.find(p => p.status === PaymentStatus.PENDING) ? t('billing.paymentStatusValues.pending', 'Pending') : t('billing.paymentStatusValues.none', 'None');
             
           return (
             <tr 
               key={invoice.id} 
-              className="hover:bg-muted/20 transition-colors group cursor-pointer"
+              className="hover:bg-muted/30 transition-colors group cursor-pointer focus-within:bg-muted/40 min-h-[80px]"
               onClick={() => setSelectedInvoiceId(invoice.id)}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedInvoiceId(invoice.id);
+                }
+              }}
             >
-              <td className="px-4 py-3 font-mono text-sm text-muted-foreground">#{invoice.id}</td>
-              <td className="px-4 py-3">
-                <Text size="sm" weight="medium">{invoice.customerName}</Text>
-              </td>
-              <td className="px-4 py-3">
-                <Badge variant="outline" className={`text-[10px] ${getStatusColor(invoice.status)}`}>
-                  {invoice.status}
-                          </Badge>
+              <td className="px-4 py-5 font-mono text-sm text-foreground/80">#{invoice.id}</td>
+              <td className="px-4 py-5">
+                <Text size="base" weight="bold" className="text-foreground">{invoice.customerName}</Text>
+                    </td>
+              <td className="px-4 py-5">
+                <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${getStatusColor(invoice.status)}`}>
+                  {localizeInvoiceStatus(t, invoice.status)}
+                            </Badge>
                         </td>
-              <td className="px-4 py-3 text-right">
-                <MoneyValue amount={invoice.total} currency={invoice.currency} className="font-bold text-sm" />
+              <td className="px-4 py-5 text-right">
+                <MoneyValue amount={invoice.total} currency={invoice.currency} className="font-bold text-base text-foreground" />
               </td>
-              <td className="px-4 py-3">
-                <Text size="sm" muted>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '-'}</Text>
+              <td className="px-4 py-5">
+                <Text size="base" weight="medium" className="text-foreground">{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '-'}</Text>
               </td>
-              <td className="px-4 py-3">
-                <Text size="xs" muted>{paymentStatus}</Text>
+              <td className="px-4 py-5">
+                <Text size="sm" weight="medium" className="text-foreground/80">{paymentStatus}</Text>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-5">
                 {exportRecord ? (
-                  <Badge variant="outline" className={`text-[10px] ${
+                  <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${
                     exportRecord.status === AccountingExportStatus.SENT || exportRecord.status === AccountingExportStatus.CONFIRMED
                       ? 'bg-emerald-100 text-emerald-700'
                       : exportRecord.status === AccountingExportStatus.FAILED
                       ? 'bg-rose-100 text-rose-700'
                       : 'bg-amber-100 text-amber-700'
                   }`}>
-                    {exportRecord.status}
+                    {localizeExportStatus(t, exportRecord.status)}
                   </Badge>
                 ) : (
-                  <Text size="xs" muted>-</Text>
+                  <Text size="sm" weight="medium" className="text-foreground/70">-</Text>
                 )}
               </td>
-              <td className="px-4 py-3">
-                <Text size="xs" muted>{new Date(invoice.createdAt).toLocaleDateString()}</Text>
+              <td className="px-4 py-5">
+                <Text size="sm" weight="medium" className="text-foreground/80">{new Date(invoice.createdAt).toLocaleDateString()}</Text>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 py-5 text-right">
                               <Button 
                   variant="ghost" 
                                 size="sm" 
@@ -3131,7 +3644,7 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
                     e.stopPropagation();
                     setSelectedInvoiceId(invoice.id);
                   }}
-                  className="text-xs flex items-center gap-1"
+                  className="text-sm flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {t('common.view', 'View')}
                   <ChevronRight size={14} />
@@ -3163,8 +3676,8 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
             setTick(t => t + 1);
           }}
         />
-      )}
-    </div>
+                            )}
+                          </div>
   );
 };
 
@@ -3221,14 +3734,14 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
   // CSV Export handlers
   const handleExportMonthlyCSV = () => {
     if (!monthlyReport) return;
-    const headers = ['Metric', 'Value'];
+    const headers = [t('reports.metric', 'Metric'), t('reports.value', 'Value')];
     const rows = [
-      ['Rooms Available', monthlyReport.totals.roomsAvailable],
-      ['Room Nights Sold', monthlyReport.totals.roomNightsSold],
-      ['Guest Nights', monthlyReport.totals.guestNights],
-      ['Occupancy Rate %', monthlyReport.totals.occupancyRate.toFixed(2)],
-      ['Arrivals', monthlyReport.totals.arrivals],
-      ['Departures', monthlyReport.totals.departures]
+      [t('reports.roomsAvailable', 'Rooms Available'), monthlyReport.totals.roomsAvailable],
+      [t('reports.roomNightsSold', 'Room Nights Sold'), monthlyReport.totals.roomNightsSold],
+      [t('reports.guestNights', 'Guest Nights'), monthlyReport.totals.guestNights],
+      [t('reports.occupancyRate', 'Occupancy Rate') + ' %', monthlyReport.totals.occupancyRate.toFixed(2)],
+      [t('reports.arrivals', 'Arrivals'), monthlyReport.totals.arrivals],
+      [t('reports.departures', 'Departures'), monthlyReport.totals.departures]
     ];
     const csv = generateCSV(headers, rows);
     downloadCSV(`occupancy-monthly-${year}-${month.toString().padStart(2, '0')}.csv`, csv);
@@ -3236,7 +3749,15 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
   
   const handleExportYearlyCSV = () => {
     if (!yearlyReport) return;
-    const headers = ['Month', 'Rooms Available', 'Room Nights Sold', 'Guest Nights', 'Occupancy Rate %', 'Arrivals', 'Departures'];
+    const headers = [
+      t('reports.month', 'Month'),
+      t('reports.roomsAvailable', 'Rooms Available'),
+      t('reports.roomNightsSold', 'Room Nights Sold'),
+      t('reports.guestNights', 'Guest Nights'),
+      t('reports.occupancyRate', 'Occupancy Rate') + ' %',
+      t('reports.arrivals', 'Arrivals'),
+      t('reports.departures', 'Departures')
+    ];
     const rows = yearlyReport.months.map(m => [
       m.monthName,
       m.roomsAvailable,
@@ -3248,7 +3769,7 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
     ]);
     // Add totals row
     rows.push([
-      'TOTAL',
+      t('reports.total', 'TOTAL'),
       yearlyReport.yearTotals.roomsAvailable,
       yearlyReport.yearTotals.roomNightsSold,
       yearlyReport.yearTotals.guestNights,
@@ -3262,13 +3783,22 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
   
   const handleExportInvoiceCSV = () => {
     if (!invoiceReport) return;
-    const headers = ['Invoice #', 'Customer', 'Status', 'Total', 'Payment Status', 'Export Status', 'Created Date', 'Due Date'];
+    const headers = [
+      t('billing.invoiceId', 'Invoice #'),
+      t('billing.client', 'Customer'),
+      t('billing.status', 'Status'),
+      t('billing.total', 'Total'),
+      t('billing.paymentStatus', 'Payment'),
+      t('billing.exportStatus', 'Export'),
+      t('billing.created', 'Created'),
+      t('billing.dueDate', 'Due Date')
+    ];
     const rows = invoiceReport.invoices.map(inv => [
       inv.id,
       inv.customerName,
       inv.status,
       `${inv.currency} ${inv.total.toLocaleString()}`,
-      (inv as any).paymentStatus || 'None',
+      (inv as any).paymentStatus || t('billing.paymentStatusValues.none', 'None'),
       (inv as any).exportStatus || '-',
       new Date(inv.createdAt).toLocaleDateString(),
       inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '-'
@@ -3281,7 +3811,7 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
   };
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Header */}
       <PageHeader
         title={t('reports.title', 'Reports')}
@@ -3289,25 +3819,25 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
       />
       
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-border mb-6">
+      <div className="flex gap-3 border-b-2 border-border bg-muted/30 p-1 rounded-t-lg mb-6">
         {canViewOccupancy && (
           <>
             <button
               onClick={() => setActiveTab('monthly')}
-              className={`px-4 py-2 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
+              className={`px-6 py-3 text-base font-bold uppercase tracking-wider rounded-t-lg transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 activeTab === 'monthly'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                  ? 'bg-background text-primary border-b-2 border-primary shadow-token-sm'
+                  : 'text-foreground/70 hover:text-foreground hover:bg-muted/50'
               }`}
             >
               {t('reports.monthly', 'Monthly Occupancy')}
             </button>
             <button
               onClick={() => setActiveTab('yearly')}
-              className={`px-4 py-2 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
+              className={`px-6 py-3 text-base font-bold uppercase tracking-wider rounded-t-lg transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 activeTab === 'yearly'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                  ? 'bg-background text-primary border-b-2 border-primary shadow-token-sm'
+                  : 'text-foreground/70 hover:text-foreground hover:bg-muted/50'
               }`}
             >
               {t('reports.yearly', 'Yearly Occupancy')}
@@ -3317,16 +3847,16 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
         {canViewInvoices && (
           <button
             onClick={() => setActiveTab('invoices')}
-            className={`px-4 py-2 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
+            className={`px-6 py-3 text-base font-bold uppercase tracking-wider rounded-t-lg transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               activeTab === 'invoices'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-primary border-b-2 border-primary shadow-token-sm'
+                : 'text-foreground/70 hover:text-foreground hover:bg-muted/50'
             }`}
           >
             {t('reports.invoiceHistory', 'Invoice History')}
           </button>
         )}
-      </div>
+                            </div>
       
       {/* Monthly Occupancy Tab */}
       {activeTab === 'monthly' && canViewOccupancy && monthlyReport && (
@@ -3335,23 +3865,23 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
           <FilterBar
             primaryFilters={
               <>
-                <div className="flex items-center gap-2">
-                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest">{t('reports.month', 'Month')}</Text>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('reports.month', 'Month')}</Text>
                   <Select 
                     size="md"
                     value={month}
                     onChange={e => setMonth(parseInt(e.target.value))}
-                    className="w-[180px]"
+                    className="w-[180px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label={t('reports.month', 'Month')}
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                      <option key={m} value={m}>{new Date(year, m - 1, 1).toLocaleDateString('en-US', { month: 'long' })}</option>
+                      <option key={m} value={m}>{new Date(year, m - 1, 1).toLocaleDateString(i18n.language === 'nb' ? 'nb-NO' : 'en-US', { month: 'long' })}</option>
                     ))}
                   </Select>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest">{t('reports.year', 'Year')}</Text>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('reports.year', 'Year')}</Text>
                   <Input 
                     type="number"
                     size="md"
@@ -3359,12 +3889,12 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
                     onChange={e => setYear(parseInt(e.target.value) || new Date().getFullYear())}
                     min="2020"
                     max={new Date().getFullYear() + 1}
-                    className="w-24"
+                    className="w-24 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label={t('reports.year', 'Year')}
                   />
                 </div>
                 
-                <Button variant="outline" onClick={handleExportMonthlyCSV}>
+                <Button variant="outline" onClick={handleExportMonthlyCSV} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                   <Download size={16} className="mr-2" />
                   {t('reports.exportCSV', 'Export CSV')}
                 </Button>
@@ -3374,36 +3904,36 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
           
           {/* KPI Tiles */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Card className="p-6 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-2 uppercase tracking-widest">{t('reports.roomsAvailable', 'Rooms Available')}</Text>
-              <Text size="2xl" weight="bold">{monthlyReport.totals.roomsAvailable}</Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.roomsAvailable', 'Rooms Available')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{monthlyReport.totals.roomsAvailable}</Text>
             </Card>
-            <Card className="p-6 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-2 uppercase tracking-widest">{t('reports.roomNightsSold', 'Room Nights Sold')}</Text>
-              <Text size="2xl" weight="bold">{monthlyReport.totals.roomNightsSold}</Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.roomNightsSold', 'Room Nights Sold')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{monthlyReport.totals.roomNightsSold}</Text>
             </Card>
-            <Card className="p-6 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-2 uppercase tracking-widest">{t('reports.guestNights', 'Guest Nights')}</Text>
-              <Text size="2xl" weight="bold">{monthlyReport.totals.guestNights}</Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.guestNights', 'Guest Nights')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{monthlyReport.totals.guestNights}</Text>
             </Card>
-            <Card className="p-6 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-2 uppercase tracking-widest">{t('reports.occupancyRate', 'Occupancy Rate')}</Text>
-              <Text size="2xl" weight="bold">{monthlyReport.totals.occupancyRate.toFixed(2)}%</Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.occupancyRate', 'Occupancy Rate')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{monthlyReport.totals.occupancyRate.toFixed(2)}%</Text>
             </Card>
-            <Card className="p-6 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-2 uppercase tracking-widest">{t('reports.arrivals', 'Arrivals')}</Text>
-              <Text size="2xl" weight="bold">{monthlyReport.totals.arrivals}</Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.arrivals', 'Arrivals')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{monthlyReport.totals.arrivals}</Text>
             </Card>
-            <Card className="p-6 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-2 uppercase tracking-widest">{t('reports.departures', 'Departures')}</Text>
-              <Text size="2xl" weight="bold">{monthlyReport.totals.departures}</Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.departures', 'Departures')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{monthlyReport.totals.departures}</Text>
             </Card>
           </div>
           
           {/* Room Type Breakdown (Optional) */}
           {Object.keys(monthlyReport.byRoomType).length > 0 && (
             <div className="space-y-4">
-              <Text size="sm" weight="bold" className="uppercase tracking-widest">{t('reports.byRoomType', 'Breakdown by Room Type')}</Text>
+              <Text size="base" weight="bold" className="uppercase tracking-widest text-foreground">{t('reports.byRoomType', 'Breakdown by Room Type')}</Text>
               <DataTable
                 headers={[
                   t('reports.roomType', 'Room Type'),
@@ -3414,18 +3944,28 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
                 ]}
               >
                 {Object.entries(monthlyReport.byRoomType).map(([type, data]) => (
-                  <tr key={type} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3">{type}</td>
-                    <td className="px-4 py-3 text-right">{data.roomsAvailable}</td>
-                    <td className="px-4 py-3 text-right">{data.roomNightsSold}</td>
-                    <td className="px-4 py-3 text-right">{data.guestNights}</td>
-                    <td className="px-4 py-3 text-right">{data.occupancyRate.toFixed(2)}%</td>
+                  <tr key={type} className="hover:bg-muted/30 transition-colors min-h-[80px]">
+                    <td className="px-4 py-5">
+                      <Text size="base" weight="bold" className="text-foreground">{type}</Text>
+                    </td>
+                    <td className="px-4 py-5 text-right">
+                      <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{data.roomsAvailable}</Text>
+                    </td>
+                    <td className="px-4 py-5 text-right">
+                      <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{data.roomNightsSold}</Text>
+                    </td>
+                    <td className="px-4 py-5 text-right">
+                      <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{data.guestNights}</Text>
+                    </td>
+                    <td className="px-4 py-5 text-right">
+                      <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{data.occupancyRate.toFixed(2)}%</Text>
+                    </td>
                   </tr>
                 ))}
               </DataTable>
             </div>
-          )}
-        </div>
+                            )}
+                          </div>
       )}
       
       {/* Yearly Occupancy Tab */}
@@ -3435,8 +3975,8 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
           <FilterBar
             primaryFilters={
               <>
-                <div className="flex items-center gap-2">
-                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest">{t('reports.year', 'Year')}</Text>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('reports.year', 'Year')}</Text>
                   <Input 
                     type="number"
                     size="md"
@@ -3444,12 +3984,12 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
                     onChange={e => setYear(parseInt(e.target.value) || new Date().getFullYear())}
                     min="2020"
                     max={new Date().getFullYear() + 1}
-                    className="w-24"
+                    className="w-24 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label={t('reports.year', 'Year')}
                   />
                 </div>
                 
-                <Button variant="outline" onClick={handleExportYearlyCSV}>
+                <Button variant="outline" onClick={handleExportYearlyCSV} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                   <Download size={16} className="mr-2" />
                   {t('reports.exportCSV', 'Export CSV')}
                 </Button>
@@ -3470,24 +4010,52 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
             ]}
           >
             {yearlyReport.months.map(m => (
-              <tr key={m.month} className="hover:bg-muted/30">
-                <td className="px-4 py-3 font-medium">{m.monthName}</td>
-                <td className="px-4 py-3 text-right">{m.roomsAvailable}</td>
-                <td className="px-4 py-3 text-right">{m.roomNightsSold}</td>
-                <td className="px-4 py-3 text-right">{m.guestNights}</td>
-                <td className="px-4 py-3 text-right">{m.occupancyRate.toFixed(2)}%</td>
-                <td className="px-4 py-3 text-right">{m.arrivals}</td>
-                <td className="px-4 py-3 text-right">{m.departures}</td>
+              <tr key={m.month} className="hover:bg-muted/30 transition-colors min-h-[80px]">
+                <td className="px-4 py-5">
+                  <Text size="base" weight="bold" className="text-foreground">{m.monthName}</Text>
+                </td>
+                <td className="px-4 py-5 text-right">
+                  <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{m.roomsAvailable}</Text>
+                </td>
+                <td className="px-4 py-5 text-right">
+                  <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{m.roomNightsSold}</Text>
+                </td>
+                <td className="px-4 py-5 text-right">
+                  <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{m.guestNights}</Text>
+                </td>
+                <td className="px-4 py-5 text-right">
+                  <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{m.occupancyRate.toFixed(2)}%</Text>
+                </td>
+                <td className="px-4 py-5 text-right">
+                  <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{m.arrivals}</Text>
+                </td>
+                <td className="px-4 py-5 text-right">
+                  <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{m.departures}</Text>
+                </td>
               </tr>
             ))}
-            <tr className="bg-muted/10 font-bold border-t border-border">
-              <td className="px-4 py-3">TOTAL</td>
-              <td className="px-4 py-3 text-right">{yearlyReport.yearTotals.roomsAvailable}</td>
-              <td className="px-4 py-3 text-right">{yearlyReport.yearTotals.roomNightsSold}</td>
-              <td className="px-4 py-3 text-right">{yearlyReport.yearTotals.guestNights}</td>
-              <td className="px-4 py-3 text-right">{yearlyReport.yearTotals.occupancyRate.toFixed(2)}%</td>
-              <td className="px-4 py-3 text-right">{yearlyReport.yearTotals.arrivals}</td>
-              <td className="px-4 py-3 text-right">{yearlyReport.yearTotals.departures}</td>
+            <tr className="bg-muted/20 font-bold border-t-2 border-border">
+              <td className="px-4 py-5">
+                <Text size="base" weight="bold" className="text-foreground">{t('reports.total', 'TOTAL')}</Text>
+              </td>
+              <td className="px-4 py-5 text-right">
+                <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{yearlyReport.yearTotals.roomsAvailable}</Text>
+              </td>
+              <td className="px-4 py-5 text-right">
+                <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{yearlyReport.yearTotals.roomNightsSold}</Text>
+              </td>
+              <td className="px-4 py-5 text-right">
+                <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{yearlyReport.yearTotals.guestNights}</Text>
+              </td>
+              <td className="px-4 py-5 text-right">
+                <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{yearlyReport.yearTotals.occupancyRate.toFixed(2)}%</Text>
+              </td>
+              <td className="px-4 py-5 text-right">
+                <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{yearlyReport.yearTotals.arrivals}</Text>
+              </td>
+              <td className="px-4 py-5 text-right">
+                <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{yearlyReport.yearTotals.departures}</Text>
+              </td>
             </tr>
           </DataTable>
         </div>
@@ -3501,43 +4069,48 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
             primaryFilters={
               <>
                 {/* Date Range */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('billing.fromDate', 'From')}</Text>
                   <Input 
                     type="date"
                     size="md"
                     value={invoiceFilters.from}
                     onChange={e => setInvoiceFilters({...invoiceFilters, from: e.target.value, page: 1})}
-                    className="w-36"
+                    className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label={t('billing.fromDate', 'From')}
                   />
-                  <Text size="sm" muted>-</Text>
+                  <Text size="sm" muted className="flex-shrink-0">-</Text>
+                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('billing.toDate', 'To')}</Text>
                   <Input 
                     type="date"
                     size="md"
                     value={invoiceFilters.to}
                     onChange={e => setInvoiceFilters({...invoiceFilters, to: e.target.value, page: 1})}
-                    className="w-36"
+                    className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label={t('billing.toDate', 'To')}
                   />
                 </div>
                 
-                <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
+                <div className="h-6 w-px bg-border mx-1 hidden sm:block flex-shrink-0" />
                 
                 {/* Status Filter */}
-                <Select 
-                  size="md"
-                  value={invoiceFilters.status}
-                  onChange={e => setInvoiceFilters({...invoiceFilters, status: e.target.value as InvoiceStatus | '', page: 1})}
-                  className="w-[140px]"
-                  aria-label={t('common.status', 'Status')}
-                >
-                  <option value="">{t('common.all', 'All')}</option>
-                  {Object.values(InvoiceStatus).map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </Select>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.status', 'Status')}</Text>
+                  <Select 
+                    size="md"
+                    value={invoiceFilters.status}
+                    onChange={e => setInvoiceFilters({...invoiceFilters, status: e.target.value as InvoiceStatus | '', page: 1})}
+                    className="w-[140px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label={t('common.status', 'Status')}
+                  >
+                    <option value="">{t('common.all', 'All')}</option>
+                    {Object.values(InvoiceStatus).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </Select>
+                </div>
                 
-                <Button variant="outline" onClick={handleExportInvoiceCSV} className="ml-2">
+                <Button variant="outline" onClick={handleExportInvoiceCSV} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                   <Download size={16} className="mr-2" />
                   {t('reports.exportCSV', 'Export CSV')}
                 </Button>
@@ -3551,7 +4124,7 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
                   placeholder={t('billing.searchPlaceholder', 'Invoice, customer...')}
                   value={invoiceFilters.search}
                   onChange={e => setInvoiceFilters({...invoiceFilters, search: e.target.value, page: 1})}
-                  className="pl-10 w-full"
+                  className="pl-10 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
             }
@@ -3562,17 +4135,17 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
           
           {/* Aggregates */}
           <div className="grid grid-cols-3 gap-4">
-            <Card className="p-4 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-1">{t('reports.totalInvoices', 'Total Invoices')}</Text>
-              <Text size="xl" weight="bold">{invoiceReport.aggregates.count}</Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.totalInvoices', 'Total Invoices')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{invoiceReport.aggregates.count}</Text>
             </Card>
-            <Card className="p-4 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-1">{t('reports.totalAmount', 'Total Amount')}</Text>
-              <Text size="xl" weight="bold"><MoneyValue amount={invoiceReport.aggregates.sumTotal} currency="NOK" /></Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.totalAmount', 'Total Amount')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none"><MoneyValue amount={invoiceReport.aggregates.sumTotal} currency="NOK" /></Text>
             </Card>
-            <Card className="p-4 border border-border">
-              <Text size="xs" weight="bold" muted className="mb-1">{t('reports.outstanding', 'Outstanding')}</Text>
-              <Text size="xl" weight="bold"><MoneyValue amount={invoiceReport.aggregates.sumOutstanding} currency="NOK" /></Text>
+            <Card className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="mb-3 uppercase tracking-widest text-foreground/70">{t('reports.outstanding', 'Outstanding')}</Text>
+              <Text size="3xl" weight="bold" className="text-foreground leading-none"><MoneyValue amount={invoiceReport.aggregates.sumOutstanding} currency="NOK" /></Text>
             </Card>
           </div>
           
@@ -3592,23 +4165,25 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
             emptyMessage={t('billing.noInvoices', 'No invoices found')}
           >
             {invoiceReport.invoices.map(inv => (
-              <tr key={inv.id} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 font-mono text-sm text-muted-foreground">{inv.id}</td>
-                <td className="px-4 py-3">{inv.customerName}</td>
-                <td className="px-4 py-3">
-                  <Badge variant="outline" className="text-[10px]">
+              <tr key={inv.id} className="hover:bg-muted/30 transition-colors min-h-[80px]">
+                <td className="px-4 py-5 font-mono text-sm text-foreground/80">#{inv.id}</td>
+                <td className="px-4 py-5">
+                  <Text size="base" weight="bold" className="text-foreground">{inv.customerName}</Text>
+                </td>
+                <td className="px-4 py-5">
+                  <Badge variant="outline" className="text-xs px-2 py-1 font-semibold">
                     {inv.status}
-                  </Badge>
+                          </Badge>
+                        </td>
+                <td className="px-4 py-5 text-right">
+                  <MoneyValue amount={inv.total} currency={inv.currency} className="font-bold text-base text-foreground" />
                 </td>
-                <td className="px-4 py-3 text-right">
-                  <MoneyValue amount={inv.total} currency={inv.currency} className="font-medium" />
+                <td className="px-4 py-5">
+                  <Text size="sm" weight="medium" className="text-foreground/80">{(inv as any).paymentStatus || 'None'}</Text>
                 </td>
-                <td className="px-4 py-3">
-                  <Text size="xs">{(inv as any).paymentStatus || 'None'}</Text>
-                </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-5">
                   {(inv as any).exportStatus ? (
-                    <Badge variant="outline" className={`text-[10px] ${
+                    <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${
                       (inv as any).exportStatus === AccountingExportStatus.SENT || (inv as any).exportStatus === AccountingExportStatus.CONFIRMED
                         ? 'bg-emerald-100 text-emerald-700'
                         : (inv as any).exportStatus === AccountingExportStatus.FAILED
@@ -3618,14 +4193,14 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
                       {(inv as any).exportStatus}
                     </Badge>
                   ) : (
-                    <Text size="xs" muted>-</Text>
+                    <Text size="sm" weight="medium" className="text-foreground/70">-</Text>
                   )}
                 </td>
-                <td className="px-4 py-3">
-                  <Text size="xs">{new Date(inv.createdAt).toLocaleDateString()}</Text>
+                <td className="px-4 py-5">
+                  <Text size="sm" weight="medium" className="text-foreground/80">{new Date(inv.createdAt).toLocaleDateString()}</Text>
                 </td>
-                <td className="px-4 py-3">
-                  <Text size="xs">{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '-'}</Text>
+                <td className="px-4 py-5">
+                  <Text size="sm" weight="medium" className="text-foreground/80">{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '-'}</Text>
                 </td>
               </tr>
             ))}
@@ -3636,34 +4211,36 @@ export const ReportingView = ({ userRole }: { userRole?: string }) => {
             <div className="p-4 flex items-center justify-between">
               <Text size="xs" muted>
                 {t('reports.showing', 'Showing')} {(invoiceReport.pagination.page - 1) * invoiceReport.pagination.pageSize + 1} - {Math.min(invoiceReport.pagination.page * invoiceReport.pagination.pageSize, invoiceReport.pagination.total)} {t('reports.of', 'of')} {invoiceReport.pagination.total}
-              </Text>
+                              </Text>
               <div className="flex gap-2">
                               <Button 
-                  variant="outline" 
+                                variant="outline" 
                                 size="sm" 
                   onClick={() => setInvoiceFilters({...invoiceFilters, page: invoiceFilters.page - 1})}
                   disabled={invoiceFilters.page === 1}
+                  className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {t('common.previous', 'Previous')}
-                </Button>
-                <Button 
+                              </Button>
+                              <Button 
                                 variant="outline" 
                   size="sm"
                   onClick={() => setInvoiceFilters({...invoiceFilters, page: invoiceFilters.page + 1})}
                   disabled={invoiceFilters.page >= invoiceReport.pagination.totalPages}
+                  className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                               >
                   {t('common.next', 'Next')}
                               </Button>
               </div>
             </div>
-          )}
-        </div>
+                            )}
+                          </div>
       )}
       
       {/* Access Denied */}
       {!canViewOccupancy && !canViewInvoices && (
-        <Card className="p-12 text-center border border-border/70">
-          <Text size="lg" weight="bold" className="opacity-50">{t('reports.accessDenied', 'You do not have access to reports')}</Text>
+        <Card className="p-12 text-center border border-border bg-white shadow-token-sm">
+          <Text size="lg" weight="bold" className="text-foreground/70">{t('reports.accessDenied', 'You do not have access to reports')}</Text>
         </Card>
       )}
                       </div>
@@ -3833,96 +4410,115 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* PAGE HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('housekeeping.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('housekeeping.subtitle', 'Cleaning tasks and room readiness')}</p>
-        </div>
-      </div>
-
-      {/* FILTER BAR - Single row */}
-      <div className="flex items-center justify-between gap-2 p-3 bg-white border border-border rounded-lg w-full">
-        <div className="flex items-center gap-2">
-          {/* Task Status Filter */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('housekeeping.status', 'Status')}</Text>
-            <select
-              value={taskStatusFilter}
-              onChange={e => setTaskStatusFilter(e.target.value as 'all' | 'pending' | 'in_progress' | 'done')}
-              className="h-10 px-4 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-[140px]"
-              aria-label={t('housekeeping.status', 'Status')}
-            >
-              <option value="all">{t('housekeeping.allStatuses', 'All')}</option>
-              <option value="pending">{t('housekeeping.statusPending', 'Pending')}</option>
-              <option value="in_progress">{t('housekeeping.statusInProgress', 'In progress')}</option>
-              <option value="done">{t('housekeeping.statusDone', 'Done')}</option>
-            </select>
-          </div>
-
-          <div className="h-6 w-px bg-border flex-shrink-0" />
-
-          {/* Due Date Filter */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('housekeeping.dueDate', 'Due')}</Text>
-            <select
-              value={dueDateFilter}
-              onChange={e => setDueDateFilter(e.target.value as 'all' | 'today' | 'overdue')}
-              className="h-10 px-4 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-[140px]"
-              aria-label={t('housekeeping.dueDate', 'Due date')}
-            >
-              <option value="all">{t('housekeeping.all', 'All')}</option>
-              <option value="today">{t('housekeeping.today', 'Today')}</option>
-              <option value="overdue">{t('housekeeping.overdue', 'Overdue')}</option>
-            </select>
+      {/* PAGE HEADER WITH SUMMARY CARDS */}
+      <div className="flex flex-col gap-6 pb-6 border-b-2 border-border">
+        {/* Title Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">{t('housekeeping.title')}</h1>
+            <p className="text-sm text-muted-foreground">{t('housekeeping.subtitle', 'Cleaning tasks and room readiness')}</p>
           </div>
         </div>
-
-        {/* Room Search - Right aligned */}
-        <div className="relative w-64 flex-shrink-0">
-          <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder={t('housekeeping.searchRooms', 'Search by room name/number')}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-10 h-9 text-xs w-full"
-          />
+        
+        {/* SUMMARY CARDS - Aligned with title */}
+        <div className="w-full grid grid-cols-2 gap-3">
+          <Card className="p-4 border border-border bg-white shadow-token-sm min-h-[100px] flex flex-col justify-between">
+            <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/70">{t('housekeeping.tasksPendingToday', 'Tasks pending today')}</Text>
+            <div className="space-y-1">
+              <Text size="2xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{pendingTasks}</Text>
+              <Text size="xs" weight="medium" className="text-foreground/70">{t('housekeeping.tasks', 'Tasks')}</Text>
+            </div>
+          </Card>
+          {overdueTasks > 0 ? (
+            <Card className="p-4 border border-border bg-white border-rose-200 bg-rose-50 shadow-token-sm min-h-[100px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/70">{t('housekeeping.tasksOverdue', 'Tasks overdue')}</Text>
+              <div className="space-y-1">
+                <Text size="2xl" weight="bold" className="text-rose-600 leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{overdueTasks}</Text>
+                <Text size="xs" weight="medium" className="text-foreground/70">{t('housekeeping.tasks', 'Tasks')}</Text>
+              </div>
+            </Card>
+          ) : (
+            <Card className="p-4 border border-border bg-white shadow-token-sm min-h-[100px] flex flex-col justify-between">
+              <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/70">{t('housekeeping.statusDone', 'Done')}</Text>
+              <div className="space-y-1">
+                <Text size="2xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{filteredTasks.filter(t => getTaskStatus(t.room) === 'done').length}</Text>
+                <Text size="xs" weight="medium" className="text-foreground/70">{t('housekeeping.tasks', 'Tasks')}</Text>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
 
-      {/* SUMMARY SECTION - Two cards only */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4 border border-border bg-white">
-          <Text size="xs" weight="bold" muted className="uppercase tracking-widest mb-1">{t('housekeeping.tasksPendingToday', 'Tasks pending today')}</Text>
-          <Text size="2xl" weight="bold" className="text-slate-900 leading-none mb-1">{pendingTasks}</Text>
-          <Text size="xs" muted>{t('housekeeping.tasks', 'Tasks')}</Text>
-        </Card>
-        {overdueTasks > 0 ? (
-          <Card className="p-4 border border-border bg-white border-rose-200 bg-rose-50">
-            <Text size="xs" weight="bold" muted className="uppercase tracking-widest mb-1">{t('housekeeping.tasksOverdue', 'Tasks overdue')}</Text>
-            <Text size="2xl" weight="bold" className="text-rose-600 leading-none mb-1">{overdueTasks}</Text>
-            <Text size="xs" muted>{t('housekeeping.tasks', 'Tasks')}</Text>
-          </Card>
-        ) : (
-          <Card className="p-4 border border-border bg-white">
-            <Text size="xs" weight="bold" muted className="uppercase tracking-widest mb-1">{t('housekeeping.statusDone', 'Done')}</Text>
-            <Text size="2xl" weight="bold" className="text-slate-900 leading-none mb-1">{filteredTasks.filter(t => getTaskStatus(t.room) === 'done').length}</Text>
-            <Text size="xs" muted>{t('housekeeping.tasks', 'Tasks')}</Text>
-          </Card>
-        )}
-      </div>
+      {/* FILTER BAR */}
+      <FilterBar
+        primaryFilters={
+          <>
+            {/* Task Status Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('housekeeping.status', 'Status')}</Text>
+              <Select
+                size="md"
+                value={taskStatusFilter}
+                onChange={e => setTaskStatusFilter(e.target.value as 'all' | 'pending' | 'in_progress' | 'done')}
+                className="w-[160px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('housekeeping.status', 'Status')}
+              >
+                <option value="all">{t('housekeeping.allStatuses', 'All')}</option>
+                <option value="pending">{t('housekeeping.statusPending', 'Pending')}</option>
+                <option value="in_progress">{t('housekeeping.statusInProgress', 'In progress')}</option>
+                <option value="done">{t('housekeeping.statusDone', 'Done')}</option>
+              </Select>
+            </div>
+
+            <div className="h-6 w-px bg-border mx-1 hidden sm:block flex-shrink-0" />
+
+            {/* Due Date Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('housekeeping.dueDate', 'Due')}</Text>
+              <Select
+                size="md"
+                value={dueDateFilter}
+                onChange={e => setDueDateFilter(e.target.value as 'all' | 'today' | 'overdue')}
+                className="w-[160px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('housekeeping.dueDate', 'Due date')}
+              >
+                <option value="all">{t('housekeeping.all', 'All')}</option>
+                <option value="today">{t('housekeeping.today', 'Today')}</option>
+                <option value="overdue">{t('housekeeping.overdue', 'Overdue')}</option>
+              </Select>
+            </div>
+          </>
+        }
+        search={
+          <div className="relative w-full">
+            <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
+            <Input
+              size="md"
+              placeholder={t('housekeeping.searchRooms', 'Search by room name/number')}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-10 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+          </div>
+        }
+        onClear={(taskStatusFilter !== 'all' || dueDateFilter !== 'all' || searchQuery) ? () => {
+          setTaskStatusFilter('all');
+          setDueDateFilter('all');
+          setSearchQuery('');
+        } : undefined}
+      />
 
       {/* TASK LIST */}
-      <Card className="overflow-hidden border border-border bg-white">
+      <Card className="overflow-hidden border border-border bg-white shadow-token-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-muted/30 border-b border-border">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-muted/30 border-b-2 border-border">
               <tr>
-                <th className="p-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('housekeeping.room', 'Room')}</th>
-                <th className="p-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('housekeeping.taskType', 'Task Type')}</th>
-                <th className="p-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('housekeeping.dueStatus', 'Due Status')}</th>
-                <th className="p-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('housekeeping.status', 'Status')}</th>
-                <th className="p-3 text-right text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('housekeeping.action', 'Action')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('housekeeping.room', 'Room')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('housekeeping.taskType', 'Task Type')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('housekeeping.dueStatus', 'Due Status')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('housekeeping.status', 'Status')}</th>
+                <th className="px-4 py-4 text-right text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('housekeeping.action', 'Action')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -3933,48 +4529,56 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
                   <tr
                     key={task.room.id}
                     onClick={() => setSelectedTaskId(task.room.id)}
-                    className={`cursor-pointer hover:bg-muted/20 transition-colors ${
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedTaskId(task.room.id);
+                      }
+                    }}
+                    className={`cursor-pointer hover:bg-muted/30 transition-colors focus-within:bg-muted/40 min-h-[80px] ${
                       selectedTaskId === task.room.id ? 'bg-primary/5' : ''
                     } ${isOverdue ? 'bg-rose-50/50' : ''}`}
                   >
-                    <td className="p-3">
-                      <Text weight="bold" size="base">{task.room.number}</Text>
+                    <td className="px-4 py-5">
+                      <Text weight="bold" size="base" className="text-foreground">{task.room.number}</Text>
                     </td>
-                    <td className="p-3">
-                      <Text size="sm" muted>{translateTaskType(task.cleaningTrigger, t)}</Text>
+                    <td className="px-4 py-5">
+                      <Text size="base" weight="medium" className="text-foreground">{translateTaskType(task.cleaningTrigger, t)}</Text>
                     </td>
-                    <td className="p-3">
+                    <td className="px-4 py-5">
                       {isOverdue ? (
-                        <Badge variant="destructive" className="text-xs">
+                        <Badge variant="destructive" className="text-xs px-2 py-1 font-semibold">
                           {t('housekeeping.overdue', 'Overdue')}
                             </Badge>
                       ) : task.priority === 'Arrival today' ? (
-                        <Badge variant="warning" className="text-xs">
+                        <Badge variant="warning" className="text-xs px-2 py-1 font-semibold">
                           {t('housekeeping.today', 'Today')}
                         </Badge>
                       ) : (
-                        <Text size="sm" muted>{t('housekeeping.notUrgent', 'Not urgent')}</Text>
+                        <Text size="base" weight="medium" className="text-foreground">{t('housekeeping.notUrgent', 'Not urgent')}</Text>
                       )}
                     </td>
-                    <td className="p-3">
+                    <td className="px-4 py-5">
                           <Badge 
                         variant={taskStatus === 'done' ? 'success' : taskStatus === 'in_progress' ? 'default' : 'outline'}
-                        className="text-xs"
+                        className="text-xs px-2 py-1 font-semibold"
                       >
                         {translateTaskStatus(taskStatus, t)}
                           </Badge>
                         </td>
-                    <td className="p-3 text-right">
+                    <td className="px-4 py-5 text-right">
                               <Button 
                                 size="sm" 
-                                variant="outline" 
+                                variant="ghost" 
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedTaskId(task.room.id);
                         }}
-                        className="text-xs"
+                        className="text-sm flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
-                        {t('housekeeping.open', 'Open')}
+                        {t('common.view', 'View')}
+                        <ChevronRight size={14} />
                               </Button>
                     </td>
                   </tr>
@@ -3999,13 +4603,14 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
 
       {/* TASK DETAIL PANEL (Drawer) */}
       {selectedTask && (
-        <Modal isOpen={!!selectedTask} onClose={() => { setSelectedTaskId(null); setNote(''); setIssueCategory(''); setIssueDescription(''); setMayRequireBlocking(false); }}>
+        <Modal 
+          isOpen={!!selectedTask} 
+          onClose={() => { setSelectedTaskId(null); setNote(''); setIssueCategory(''); setIssueDescription(''); setMayRequireBlocking(false); }}
+          title={t('housekeeping.taskSummary', 'Task Summary')}
+        >
           <div className="space-y-6 max-h-[90vh] overflow-y-auto">
             {/* A. Task Summary */}
             <div className="space-y-4 pb-4 border-b border-border">
-              <div>
-                <Text size="lg" weight="bold">{t('housekeeping.taskSummary', 'Task Summary')}</Text>
-        </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Text size="xs" weight="bold" muted className="uppercase tracking-widest mb-1">{t('housekeeping.room', 'Room')}</Text>
@@ -4193,7 +4798,7 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
                 <div>
                   <Text size="xs" weight="bold" className="uppercase tracking-widest">{t('housekeeping.created', 'Created')}</Text>
                   <Text size="sm">{t('housekeeping.notAvailable', 'N/A')}</Text>
-                </div>
+                      </div>
                 <div>
                   <Text size="xs" weight="bold" className="uppercase tracking-widest">{t('housekeeping.completed', 'Completed')}</Text>
                   <Text size="sm">
@@ -4290,115 +4895,119 @@ export const MaintenanceView = ({ userRole }: { userRole?: string }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Header */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <Stack spacing={1}>
-          <h1 className="text-2xl font-bold text-foreground">{t('maintenance.title', 'Maintenance Queue')}</h1>
-          <Text size="xs" muted>{t('maintenance.subtitle', 'Manage maintenance tickets and unit blocking')}</Text>
-        </Stack>
-        
-        {canCreate && (
-          <Button variant="primary" onClick={() => setShowCreateForm(true)}>
-            <Plus size={16} className="mr-2" />
-            {t('maintenance.createTicket', 'Create Ticket')}
-          </Button>
-        )}
-          </div>
+      <PageHeader 
+        title={t('maintenance.title', 'Maintenance Queue')}
+        subtitle={t('maintenance.subtitle', 'Manage maintenance tickets and unit blocking')}
+        actions={
+          canCreate && (
+            <Button variant="primary" onClick={() => setShowCreateForm(true)} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              <Plus size={16} className="mr-2" />
+              {t('maintenance.createTicket', 'Create Ticket')}
+            </Button>
+          )
+        }
+      />
       
       {/* Filters */}
-      <div className="flex items-center gap-2 p-3 bg-white border border-border rounded-lg w-full">
-        {/* Status Filter */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.status', 'Status')}</Text>
-          <Select 
-            size="md"
-            value={filters.status}
-            onChange={e => setFilters({...filters, status: e.target.value as MaintenanceTicketStatus | ''})}
-            className="text-sm min-w-[140px]"
-            aria-label={t('common.status', 'Status')}
-          >
-            <option value="">{t('common.all', 'All')}</option>
-            {Object.values(MaintenanceTicketStatus).map(s => (
-              <option key={s} value={s}>{s.replace('_', ' ')}</option>
-            ))}
-          </Select>
+      <FilterBar
+        primaryFilters={
+          <>
+            {/* Status Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.status', 'Status')}</Text>
+              <Select 
+                size="md"
+                value={filters.status}
+                onChange={e => setFilters({...filters, status: e.target.value as MaintenanceTicketStatus | ''})}
+                className="w-[160px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('common.status', 'Status')}
+              >
+                <option value="">{t('common.all', 'ALL')}</option>
+                {Object.values(MaintenanceTicketStatus).map(s => (
+                  <option key={s} value={s}>{localizeMaintenanceStatus(t, s)}</option>
+                ))}
+              </Select>
+          </div>
+
+            <div className="h-6 w-px bg-border mx-1 hidden sm:block flex-shrink-0" />
+
+            {/* Severity Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('maintenance.severity', 'Severity')}</Text>
+              <Select 
+                size="md"
+                value={filters.severity}
+                onChange={e => setFilters({...filters, severity: e.target.value as MaintenanceSeverity | ''})}
+                className="w-[160px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('maintenance.severity', 'Severity')}
+              >
+                <option value="">{t('common.all', 'ALL')}</option>
+                {Object.values(MaintenanceSeverity).map(s => (
+                  <option key={s} value={s}>{localizeMaintenanceSeverity(t, s)}</option>
+                ))}
+              </Select>
       </div>
 
-        <div className="h-6 w-px bg-border flex-shrink-0" />
+            <div className="h-6 w-px bg-border mx-1 hidden sm:block flex-shrink-0" />
 
-        {/* Severity Filter */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('maintenance.severity', 'Severity')}</Text>
-          <Select 
-            size="md"
-            value={filters.severity}
-            onChange={e => setFilters({...filters, severity: e.target.value as MaintenanceSeverity | ''})}
-            className="text-sm min-w-[140px]"
-            aria-label={t('maintenance.severity', 'Severity')}
-          >
-            <option value="">{t('common.all', 'All')}</option>
-            {Object.values(MaintenanceSeverity).map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </Select>
+            {/* Category Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('maintenance.category', 'Category')}</Text>
+              <Select 
+                size="md"
+                value={filters.category}
+                onChange={e => setFilters({...filters, category: e.target.value as MaintenanceCategory | ''})}
+                className="w-[160px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('maintenance.category', 'Category')}
+              >
+                <option value="">{t('common.all', 'ALL')}</option>
+                {Object.values(MaintenanceCategory).map(c => (
+                  <option key={c} value={c}>{localizeMaintenanceCategory(t, c)}</option>
+                ))}
+              </Select>
             </div>
 
-        <div className="h-6 w-px bg-border flex-shrink-0" />
+            <div className="h-6 w-px bg-border mx-1 hidden sm:block flex-shrink-0" />
 
-        {/* Category Filter */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('maintenance.category', 'Category')}</Text>
-          <Select 
-            size="md"
-            value={filters.category}
-            onChange={e => setFilters({...filters, category: e.target.value as MaintenanceCategory | ''})}
-            className="text-sm min-w-[140px]"
-            aria-label={t('maintenance.category', 'Category')}
-          >
-            <option value="">{t('common.all', 'All')}</option>
-            {Object.values(MaintenanceCategory).map(c => (
-              <option key={c} value={c}>{c.replace('_', ' ')}</option>
-            ))}
-          </Select>
+            {/* Blocked Only Checkbox */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={filters.blockedOnly}
+                  onChange={e => setFilters({...filters, blockedOnly: e.target.checked})}
+                  className="rounded focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+                <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('maintenance.blockedOnly', 'Blocked only')}</Text>
+              </label>
               </div>
-
-        <div className="h-6 w-px bg-border flex-shrink-0" />
-
-        {/* Search */}
-        <div className="relative flex-1 min-w-0">
-          <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-          <Input 
-            size="md"
-            placeholder={t('maintenance.searchPlaceholder', 'Unit, ticket ID...')}
-            value={filters.search}
-            onChange={e => setFilters({...filters, search: e.target.value})}
-            className="pl-10 text-sm w-full"
-          />
-            </div>
-
-        <div className="h-6 w-px bg-border flex-shrink-0" />
-
-        {/* Blocked Only Checkbox */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input 
-              type="checkbox"
-              checked={filters.blockedOnly}
-              onChange={e => setFilters({...filters, blockedOnly: e.target.checked})}
-              className="rounded"
+          </>
+        }
+        search={
+          <div className="relative w-full">
+            <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
+            <Input 
+              size="md"
+              placeholder={t('maintenance.searchPlaceholder', 'Unit, ticket ID...')}
+              value={filters.search}
+              onChange={e => setFilters({...filters, search: e.target.value})}
+              className="pl-10 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
-            <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('maintenance.blockedOnly', 'Blocked only')}</Text>
-          </label>
-        </div>
-      </div>
+            </div>
+        }
+        onClear={(filters.status || filters.severity || filters.category || filters.search || filters.blockedOnly) ? () => {
+          setFilters({...filters, status: '', severity: '', category: '', search: '', blockedOnly: false});
+        } : undefined}
+      />
       
       {/* Tickets List */}
       <div className="space-y-4">
         {tickets.length === 0 ? (
-          <Card className="p-12 text-center border border-border/70">
+          <Card className="p-12 text-center border border-border bg-white shadow-token-sm">
             <HardHat size={48} className="mx-auto mb-4 opacity-30" />
-            <Text size="lg" weight="bold" className="opacity-50">{t('maintenance.noTickets', 'No tickets found')}</Text>
+            <Text size="lg" weight="bold" className="text-foreground/70">{t('maintenance.noTickets', 'No tickets found')}</Text>
           </Card>
         ) : (
           tickets.map(ticket => {
@@ -4409,61 +5018,68 @@ export const MaintenanceView = ({ userRole }: { userRole?: string }) => {
             return (
               <Card 
                 key={ticket.id} 
-                className="p-4 border border-border/70 hover:shadow-md transition-all cursor-pointer"
+                className="p-6 border border-border bg-white shadow-token-sm hover:shadow-token-md transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 onClick={() => setSelectedTicketId(ticket.id)}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedTicketId(ticket.id);
+                  }
+                }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Text size="sm" weight="bold" className="text-slate-400 font-mono">{ticket.id}</Text>
-                      <Text size="lg" weight="bold" className="text-slate-900">{ticket.title}</Text>
+                    <div className="flex items-center gap-3 mb-4">
+                      <Text size="sm" weight="bold" className="text-foreground/60 font-mono">{ticket.id}</Text>
+                      <Text size="xl" weight="bold" className="text-foreground">{localizeMaintenanceTicketTitle(t, ticket.id, ticket.title)}</Text>
                       {isBlocked && (
-                        <Badge variant="destructive" className="text-[10px]">
+                        <Badge variant="destructive" className="text-xs px-2 py-1 font-semibold">
                           {t('rooms.outOfService', 'OUT OF SERVICE')}
                         </Badge>
                       )}
       </div>
                     
-                    <div className="flex flex-wrap items-center gap-3 mb-2">
-                      <div className="flex items-center gap-1">
-                        <Bed size={14} className="text-slate-400" />
-                        <Text size="sm" weight="medium">{t('rooms.unit', 'Unit')} {room?.number || ticket.unitId}</Text>
-                        {room && <Text size="xs" muted className="ml-1">({room.type})</Text>}
+                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Bed size={16} className="text-foreground/60" />
+                        <Text size="base" weight="bold" className="text-foreground">{t('rooms.unit', 'Unit')} {room?.number || ticket.unitId}</Text>
+                        {room && <Text size="sm" weight="medium" className="text-foreground/70 ml-1">({localizeRoomType(t, room.type)})</Text>}
              </div>
                       
-                      <Badge variant="outline" className={`text-[10px] ${getSeverityColor(ticket.severity)}`}>
-                        {ticket.severity}
+                      <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${getSeverityColor(ticket.severity)}`}>
+                        {localizeMaintenanceSeverity(t, ticket.severity)}
                       </Badge>
                       
-                      <Badge variant="outline" className={`text-[10px] ${getStatusColor(ticket.status)}`}>
-                        {ticket.status.replace('_', ' ')}
+                      <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${getStatusColor(ticket.status)}`}>
+                        {localizeMaintenanceStatus(t, ticket.status)}
                       </Badge>
                       
-                      <Text size="xs" muted>{ticket.category.replace('_', ' ')}</Text>
+                      <Text size="sm" weight="medium" className="text-foreground/70">{localizeMaintenanceCategory(t, ticket.category)}</Text>
                       
-                      <Text size="xs" muted className="flex items-center gap-1">
-                        <Clock size={12} />
+                      <Text size="sm" weight="medium" className="text-foreground/70 flex items-center gap-1">
+                        <Clock size={14} />
                         {getTicketAge(ticket)}
-                      </Text>
+                            </Text>
                       
                       {ticket.assignedToUserId && (
-                        <Text size="xs" muted>Assigned: {ticket.assignedToUserId}</Text>
+                        <Text size="sm" weight="medium" className="text-foreground/70">{t('maintenance.assigned', 'Assigned')}: {ticket.assignedToUserId}</Text>
                       )}
                       
                       {nextArrival && (
-                        <Text size="xs" muted className="flex items-center gap-1">
-                          <Calendar size={12} />
-                          Next: {nextArrival}
-                        </Text>
+                        <Text size="sm" weight="medium" className="text-foreground/70 flex items-center gap-1">
+                          <Calendar size={14} />
+                          {t('maintenance.nextArrival', 'Next')}: {nextArrival}
+                            </Text>
                       )}
                </div>
                     
-                    <Text size="sm" muted className="line-clamp-2">{ticket.description}</Text>
+                    <Text size="base" weight="medium" className="text-foreground line-clamp-2">{localizeMaintenanceTicketDescription(t, ticket.id, ticket.description)}</Text>
                </div>
                   
-                  <ChevronRight size={20} className="text-slate-400 shrink-0" />
+                  <ChevronRight size={24} className="text-foreground/60 shrink-0" />
                </div>
-              </Card>
+        </Card>
             );
           })
         )}
@@ -4590,18 +5206,18 @@ const TicketDetailDrawer: React.FC<{
       <DetailDrawer
         isOpen={true}
         onClose={onClose}
-        title={ticket.title}
+        title={localizeMaintenanceTicketTitle(t, ticket.id, ticket.title)}
         subtitle={`#${ticket.id.slice(0, 8).toUpperCase()}`}
         actions={
           <div className="flex gap-2">
             <Badge variant="outline" className={getSeverityColor(ticket.severity)}>
-              {ticket.severity}
+              {localizeMaintenanceSeverity(t, ticket.severity)}
             </Badge>
             <Badge variant="outline">
-              {ticket.status.replace('_', ' ')}
+              {localizeMaintenanceStatus(t, ticket.status)}
             </Badge>
             <Badge variant="outline">
-              {ticket.category.replace('_', ' ')}
+              {localizeMaintenanceCategory(t, ticket.category)}
             </Badge>
           </div>
         }
@@ -4612,7 +5228,7 @@ const TicketDetailDrawer: React.FC<{
             <Bed size={16} className="text-slate-400" />
             <Text size="lg" weight="bold">{t('rooms.unit', 'Unit')} {room?.number || ticket.unitId}</Text>
             {room && <Text size="sm" muted>({room.type})</Text>}
-          </div>
+      </div>
           {isBlocked && (
             <div className="mt-2 p-2 bg-rose-50 rounded border border-rose-200">
               <Text size="sm" weight="bold" className="text-rose-700">
@@ -4626,10 +5242,10 @@ const TicketDetailDrawer: React.FC<{
         </div>
         
         {/* Description */}
-        <div>
+            <div>
           <Text size="sm" weight="bold" className="mb-2">{t('maintenance.description', 'Description')}</Text>
-          <Text size="sm" className="text-slate-700 whitespace-pre-wrap">{ticket.description}</Text>
-        </div>
+          <Text size="sm" className="text-slate-700 whitespace-pre-wrap">{localizeMaintenanceTicketDescription(t, ticket.id, ticket.description)}</Text>
+            </div>
         
         {/* Attachments */}
         <div>
@@ -4643,7 +5259,7 @@ const TicketDetailDrawer: React.FC<{
                   <FileText size={16} className="text-slate-400" />
                   <Text size="sm" className="flex-1">{att.fileName}</Text>
                   <Text size="xs" muted>{(att.size / 1024).toFixed(1)} KB</Text>
-                </div>
+              </div>
               ))}
             </div>
           )}
@@ -4656,10 +5272,10 @@ const TicketDetailDrawer: React.FC<{
             <div className="space-y-2">
               <Text size="sm">{t('maintenance.unitIsBlocked', 'Unit is currently blocked')}</Text>
               {room.outOfServiceReason && (
-                <Text size="xs" muted>Reason: {room.outOfServiceReason}</Text>
+                <Text size="xs" muted>{t('maintenance.reason', 'Reason')}: {room.outOfServiceReason}</Text>
               )}
               {room.outOfServiceNote && (
-                <Text size="xs" muted>Note: {room.outOfServiceNote}</Text>
+                <Text size="xs" muted>{t('maintenance.note', 'Note')}: {room.outOfServiceNote}</Text>
               )}
               {room.expectedReturnDate && (
                 <Text size="xs" muted>Expected return: {room.expectedReturnDate}</Text>
@@ -4667,9 +5283,9 @@ const TicketDetailDrawer: React.FC<{
               {canBlock && (
                 <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowRestoreModal(true)}>
                   {t('rooms.restoreUnit', 'Restore Unit')}
-                </Button>
-              )}
-            </div>
+                      </Button>
+                    )}
+                  </div>
           ) : (
             <div>
               <Text size="sm" className="mb-3">{t('maintenance.unitNotBlocked', 'Unit is not blocked')}</Text>
@@ -4694,7 +5310,7 @@ const TicketDetailDrawer: React.FC<{
             </Text>
             {impact.nextArrival && (
               <Text size="xs" className="text-amber-700 mt-1">
-                Next arrival: {impact.nextArrival.date} at {impact.nextArrival.time}
+                {t('maintenance.nextArrival', 'Next')}: {impact.nextArrival.date} {t('common.time', 'at')} {impact.nextArrival.time}
               </Text>
             )}
             {impact.isOccupied && (
@@ -4719,10 +5335,10 @@ const TicketDetailDrawer: React.FC<{
                     onClick={() => handleStatusChange(status)}
                     disabled={ticket.status === status}
                   >
-                    {status.replace('_', ' ')}
+                    {localizeMaintenanceStatus(t, status)}
                   </Button>
-                ))}
-              </div>
+        ))}
+        </div>
             </div>
             
             <Button variant="outline" size="sm" onClick={handleAssign}>
@@ -4731,7 +5347,7 @@ const TicketDetailDrawer: React.FC<{
                 : t('maintenance.assign', 'Assign')
               }
             </Button>
-          </div>
+            </div>
         )}
         
         {/* Metadata */}
@@ -4750,7 +5366,7 @@ const TicketDetailDrawer: React.FC<{
               {t('maintenance.resolvedAt', 'Resolved')}: {new Date(ticket.resolvedAt).toLocaleString()}
             </Text>
           )}
-        </div>
+          </div>
       </DetailDrawer>
       
       {/* Block Unit Modal */}
@@ -4782,20 +5398,25 @@ const TicketDetailDrawer: React.FC<{
 // --- CREATE TICKET MODAL ---
 const CreateTicketModal: React.FC<{
   userRole: string;
+  initialUnitId?: string;
   onClose: () => void;
   onCreated: () => void;
-}> = ({ userRole, onClose, onCreated }) => {
+}> = ({ userRole, initialUnitId, onClose, onCreated }) => {
   const { t } = useTranslation();
   const [form, setForm] = useState({
-    unitId: '',
+    unitId: initialUnitId || '',
     title: '',
     category: MaintenanceCategory.OTHER,
     severity: MaintenanceSeverity.MEDIUM,
     description: '',
     requiresBlocking: false
   });
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [createdTicketId, setCreatedTicketId] = useState<string | null>(null);
+  const [blockForm, setBlockForm] = useState({ reason: BlockReason.MAINTENANCE, note: '', expectedReturnAt: '' });
   
   const rooms = store.getRooms();
+  const canBlock = ['ADMIN', 'MAINTENANCE'].includes(userRole);
   
   const handleSubmit = () => {
     try {
@@ -4804,7 +5425,7 @@ const CreateTicketModal: React.FC<{
         return;
       }
       
-      store.addTicket({
+      const newTicket = store.addTicket({
         unitId: form.unitId,
         title: form.title,
         category: form.category,
@@ -4813,12 +5434,33 @@ const CreateTicketModal: React.FC<{
         requiresBlocking: form.requiresBlocking
       }, userRole);
       
-      // If requires blocking, trigger block flow
-      if (form.requiresBlocking) {
-        // This will be handled by showing block modal after ticket creation
-        // For now, just create ticket
+      // If requires blocking and user can block, show block modal
+      if (form.requiresBlocking && canBlock) {
+        setCreatedTicketId(newTicket.id);
+        setShowBlockModal(true);
+      } else {
+        // If requires blocking but user can't block, just show a message
+        if (form.requiresBlocking && !canBlock) {
+          alert(t('maintenance.blockingRequiresPermission', 'Blocking requires ADMIN or MAINTENANCE role. Ticket created but unit not blocked.'));
+        }
+        onCreated();
       }
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+  
+  const handleBlockConfirm = () => {
+    if (!createdTicketId || !form.unitId) return;
+    
+    try {
+      store.blockUnit(form.unitId, {
+        reason: blockForm.reason,
+        note: blockForm.note,
+        expectedReturnAt: blockForm.expectedReturnAt
+      }, userRole);
       
+      setShowBlockModal(false);
       onCreated();
     } catch (err: any) {
       alert(err.message);
@@ -4826,6 +5468,7 @@ const CreateTicketModal: React.FC<{
   };
 
   return (
+    <>
     <Modal isOpen={true} onClose={onClose} title={t('maintenance.createTicket', 'Create Maintenance Ticket')}>
       <div className="space-y-4">
         <div className="w-full">
@@ -4838,13 +5481,14 @@ const CreateTicketModal: React.FC<{
             value={form.unitId}
             onChange={e => setForm({...form, unitId: e.target.value})}
             className="mt-1 w-full"
+            disabled={!!initialUnitId}
           >
             <option value="">{t('common.select', 'Select...')}</option>
             {rooms.map(r => (
               <option key={r.id} value={r.id}>{t('rooms.unit', 'Unit')} {r.number} ({r.type})</option>
             ))}
           </Select>
-      </div>
+    </div>
 
         <div className="w-full">
           <Label htmlFor="title" required>
@@ -4858,7 +5502,7 @@ const CreateTicketModal: React.FC<{
             placeholder={t('maintenance.titlePlaceholder', 'Brief description of issue')}
             className="mt-1 w-full"
           />
-            </div>
+             </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="w-full">
@@ -4873,7 +5517,7 @@ const CreateTicketModal: React.FC<{
               className="mt-1 w-full"
             >
               {Object.values(MaintenanceCategory).map(c => (
-                <option key={c} value={c}>{c.replace('_', ' ')}</option>
+                <option key={c} value={c}>{localizeMaintenanceCategory(t, c)}</option>
               ))}
             </Select>
           </div>
@@ -4890,7 +5534,7 @@ const CreateTicketModal: React.FC<{
               className="mt-1 w-full"
             >
               {Object.values(MaintenanceSeverity).map(s => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>{localizeMaintenanceSeverity(t, s)}</option>
               ))}
             </Select>
           </div>
@@ -4933,6 +5577,273 @@ const CreateTicketModal: React.FC<{
         </div>
       </div>
     </Modal>
+    
+    {/* Block Unit Modal - shown after ticket creation if requiresBlocking is true */}
+    {showBlockModal && createdTicketId && form.unitId && (
+      <BlockUnitModal
+        roomId={form.unitId}
+        ticketId={createdTicketId}
+        onClose={() => {
+          setShowBlockModal(false);
+          onCreated();
+        }}
+        onConfirm={handleBlockConfirm}
+        initialReason={BlockReason.MAINTENANCE}
+        initialNote={form.description}
+        initialExpectedReturn={blockForm.expectedReturnAt}
+        onFormChange={(form) => setBlockForm(form)}
+      />
+    )}
+    </>
+  );
+};
+
+// --- CREATE INVOICE FROM BOOKING MODAL ---
+const CreateInvoiceFromBookingModal: React.FC<{
+  bookingId: string;
+  userRole: string;
+  onClose: () => void;
+  onCreated: (invoiceId: string) => void;
+}> = ({ bookingId, userRole, onClose, onCreated }) => {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    reference1: '',
+    reference2: '',
+    nightlyRate: 0,
+  });
+  const [isCreating, setIsCreating] = useState(false);
+  
+  const booking = store.getBookings().find(b => b.id === bookingId);
+  const room = booking ? store.getRoomById(booking.roomId) : null;
+  const meals = booking ? store.getMealOrders().filter(m => (m as any).bookingId === bookingId && m.status !== MealOrderStatus.CANCELLED) : [];
+  
+  // Initialize nightly rate from booking or room
+  useEffect(() => {
+    if (booking && !form.nightlyRate) {
+      const rate = booking.pricePerNightOverride || room?.pricePerNight || 1000;
+      setForm(prev => ({ ...prev, nightlyRate: rate }));
+    }
+  }, [booking, room]);
+  
+  if (!booking) {
+    return (
+      <Modal isOpen={true} onClose={onClose} title={t('bookings.actions.createInvoice', 'Create Invoice')}>
+        <div className="p-4">
+          <Text size="sm" className="text-destructive">
+            {t('bookings.bookingNotFound', 'Booking not found')}
+          </Text>
+          <Button variant="ghost" className="mt-4" onClick={onClose}>
+            {t('common.close', 'Close')}
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
+  
+  // Calculate nights
+  const startDate = new Date(booking.startDate);
+  const endDate = new Date(booking.endDate);
+  const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) || 1;
+  
+  // Calculate totals
+  const roomTotal = nights * form.nightlyRate;
+  const mealTotal = meals.reduce((sum, m) => {
+    const item = store.getKitchenItems().find(i => i.id === m.kitchenItemId);
+    return sum + ((item?.unitPrice || 0) * m.quantity);
+  }, 0);
+  
+  // Add extra fees
+  const feesTotal = (booking.extraFees || []).reduce((sum, f) => sum + f.amount, 0);
+  
+  const subtotal = roomTotal + mealTotal + feesTotal;
+  const vatTotal = subtotal * 0.15; // Simplified VAT calculation
+  const total = subtotal + vatTotal;
+  
+  const handleCreate = async () => {
+    if (!form.reference1 || !form.reference2) {
+      alert(t('billing.referencesRequired', 'Reference 1 and Reference 2 are required'));
+      return;
+    }
+    
+    if (form.nightlyRate <= 0) {
+      alert(t('billing.invalidRate', 'Nightly rate must be greater than 0'));
+      return;
+    }
+    
+    setIsCreating(true);
+    try {
+      // Temporarily set groupName if not set, so we can use createInvoiceFromGroup
+      const originalGroupName = booking.groupName;
+      const tempGroupName = booking.groupName || `SINGLE-${booking.id}`;
+      
+      if (!booking.groupName) {
+        // Temporarily assign group name for invoice creation
+        (booking as any).groupName = tempGroupName;
+      }
+      
+      // Override price per night if custom rate provided
+      const originalPriceOverride = booking.pricePerNightOverride;
+      if (form.nightlyRate !== (booking.pricePerNightOverride || room?.pricePerNight || 1000)) {
+        (booking as any).pricePerNightOverride = form.nightlyRate;
+      }
+      
+      try {
+        const invoice = store.createInvoiceFromGroup(tempGroupName, userRole);
+        
+        // Update invoice with custom references
+        const invoiceToUpdate = store.getInvoices().find(i => i.id === invoice.id);
+        if (invoiceToUpdate) {
+          store.updateInvoice(invoice.id, {
+            reference1: form.reference1,
+            reference2: form.reference2
+          }, userRole);
+          
+          // Set bookingId if it's a single booking
+          if (!originalGroupName) {
+            (invoiceToUpdate as any).bookingId = booking.id;
+          }
+        }
+        
+        onCreated(invoice.id);
+      } finally {
+        // Restore original values
+        if (!originalGroupName) {
+          (booking as any).groupName = originalGroupName;
+        }
+        if (originalPriceOverride !== booking.pricePerNightOverride) {
+          (booking as any).pricePerNightOverride = originalPriceOverride;
+        }
+      }
+    } catch (err: any) {
+      alert(err.message || t('billing.createError', 'Failed to create invoice'));
+    } finally {
+      setIsCreating(false);
+    }
+  };
+  
+  return (
+    <Modal isOpen={true} onClose={onClose} title={t('bookings.actions.createInvoice', 'Create Invoice')}>
+      <div className="space-y-4">
+        {/* Booking Info */}
+        <div className="p-4 bg-muted/20 rounded-lg border border-border">
+          <Text size="sm" weight="bold" className="mb-2">{t('bookings.bookingInfo', 'Booking Information')}</Text>
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <Text size="sm" muted>{t('common.customer', 'Customer')}:</Text>
+              <Text size="sm">{booking.customerName}</Text>
+            </div>
+            <div className="flex justify-between">
+              <Text size="sm" muted>{t('rooms.unit', 'Unit')}:</Text>
+              <Text size="sm">{room?.number || booking.roomId}</Text>
+            </div>
+            <div className="flex justify-between">
+              <Text size="sm" muted>{t('common.dates', 'Dates')}:</Text>
+              <Text size="sm">{new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}</Text>
+            </div>
+            <div className="flex justify-between">
+              <Text size="sm" muted>{t('bookings.nights', 'Nights')}:</Text>
+              <Text size="sm">{nights}</Text>
+            </div>
+          </div>
+        </div>
+        
+        {/* References */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="ref1" required>
+              {t('billing.reference1', 'Reference 1')}
+            </Label>
+            <Input
+              id="ref1"
+              size="md"
+              value={form.reference1}
+              onChange={e => setForm({...form, reference1: e.target.value})}
+              placeholder={t('billing.reference1Placeholder', 'e.g., Project code')}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="ref2" required>
+              {t('billing.reference2', 'Reference 2')}
+            </Label>
+            <Input
+              id="ref2"
+              size="md"
+              value={form.reference2}
+              onChange={e => setForm({...form, reference2: e.target.value})}
+              placeholder={t('billing.reference2Placeholder', 'e.g., Booking ID')}
+              className="mt-1"
+            />
+          </div>
+        </div>
+        
+        {/* Nightly Rate */}
+        <div>
+          <Label htmlFor="nightlyRate" required>
+            {t('billing.nightlyRate', 'Nightly Rate')} ({t('common.currency', 'NOK')})
+          </Label>
+          <Input
+            id="nightlyRate"
+            type="number"
+            size="md"
+            value={form.nightlyRate}
+            onChange={e => setForm({...form, nightlyRate: parseFloat(e.target.value) || 0})}
+            min="0"
+            step="0.01"
+            className="mt-1"
+          />
+        </div>
+        
+        {/* Preview */}
+        <Card className="p-4 border border-border bg-muted/20">
+          <Text size="sm" weight="bold" className="mb-3">{t('billing.preview', 'Preview')}</Text>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <Text size="sm" muted>{t('billing.roomTotal', 'Room')} ({nights} {nights === 1 ? t('bookings.night', 'night') : t('bookings.nights', 'nights')}):</Text>
+              <Text size="sm">{t('common.currency', 'NOK')} {roomTotal.toLocaleString()}</Text>
+            </div>
+            {mealTotal > 0 && (
+              <div className="flex justify-between">
+                <Text size="sm" muted>{t('kitchen.orders', 'Meals')}:</Text>
+                <Text size="sm">{t('common.currency', 'NOK')} {mealTotal.toLocaleString()}</Text>
+              </div>
+            )}
+            {feesTotal > 0 && (
+              <div className="flex justify-between">
+                <Text size="sm" muted>{t('billing.fees', 'Fees')}:</Text>
+                <Text size="sm">{t('common.currency', 'NOK')} {feesTotal.toLocaleString()}</Text>
+              </div>
+            )}
+            <div className="flex justify-between pt-2 border-t border-border">
+              <Text size="base" weight="bold">{t('billing.total', 'Total')}:</Text>
+              <Text size="base" weight="bold">{t('common.currency', 'NOK')} {total.toLocaleString()}</Text>
+            </div>
+          </div>
+        </Card>
+        
+        {/* Actions */}
+        <div className="flex gap-3 pt-4 border-t border-border">
+          <Button variant="ghost" className="flex-1" onClick={onClose}>
+            {t('common.cancel', 'Cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            className="flex-1"
+            onClick={handleCreate}
+            disabled={isCreating || !form.reference1 || !form.reference2 || form.nightlyRate <= 0}
+          >
+            {isCreating ? (
+              <>
+                <Loader2 size={14} className="mr-2 animate-spin" />
+                {t('billing.creating', 'Creating...')}
+              </>
+            ) : (
+              t('bookings.actions.createInvoice', 'Create Invoice')
+            )}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 };
 
@@ -4969,7 +5880,7 @@ const BlockUnitModal: React.FC<{
     }
     onConfirm();
   };
-  
+
   return (
     <Modal isOpen={true} onClose={onClose} title={t('rooms.blockUnitTitle', 'Set unit out of service?')}>
       <Stack spacing={4}>
@@ -4979,15 +5890,16 @@ const BlockUnitModal: React.FC<{
         
         <div>
           <Text size="sm" weight="bold" className="mb-2">{t('rooms.reasonForBlocking', 'Reason for blocking')} *</Text>
-          <select 
-            className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm"
+          <Select
+            size="md"
             value={form.reason}
             onChange={e => setForm({...form, reason: e.target.value as BlockReason})}
+            className="w-full"
           >
             {Object.values(BlockReason).map(r => (
-              <option key={r} value={r}>{r}</option>
+              <option key={r} value={r}>{localizeBlockReason(t, r)}</option>
             ))}
-          </select>
+          </Select>
       </div>
 
         <div>
@@ -5031,7 +5943,7 @@ const BlockUnitModal: React.FC<{
             </Text>
             {impact.nextArrival && (
               <Text size="xs" className="text-amber-700 mt-1">
-                Next arrival: {impact.nextArrival.date} at {impact.nextArrival.time} ({impact.nextArrival.customerName})
+                {t('maintenance.nextArrival', 'Next')}: {impact.nextArrival.date} {t('common.time', 'at')} {impact.nextArrival.time} ({impact.nextArrival.customerName})
               </Text>
             )}
             {impact.isOccupied && (
@@ -5085,7 +5997,7 @@ const RestoreUnitModal: React.FC<{
 
 // --- KITCHEN BOARD VIEW (Large Screen) ---
 export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [tick, setTick] = useState(0);
   const [dateRange, setDateRange] = useState<'today' | 'tomorrow' | 'week'>('today');
   const [statusFilter, setStatusFilter] = useState<MealOrderStatus[]>([]);
@@ -5127,7 +6039,7 @@ export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
       store.updateMealOrderStatus(orderId, newStatus, userRole || 'Kitchen');
       setTick(t => t + 1);
     } catch (err: any) {
-      alert(err.message);
+      alert(t('common.error', 'Error') + ': ' + (err.message || t('kitchen.orders.error', 'Failed to update order status')));
     }
   };
   
@@ -5137,7 +6049,7 @@ export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
       store.cancelMealOrder(orderId, userRole || 'Kitchen');
       setTick(t => t + 1);
     } catch (err: any) {
-      alert(err.message);
+      alert(t('common.error', 'Error') + ': ' + (err.message || t('kitchen.orders.error', 'Failed to cancel order')));
     }
   };
   
@@ -5153,9 +6065,10 @@ export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
   
   const formatDateTime = (dateTime: string) => {
     const d = new Date(dateTime);
+    const locale = i18n.language === 'nb' ? 'no-NO' : 'en-US';
     return {
-      date: d.toLocaleDateString('no-NO', { day: '2-digit', month: '2-digit' }),
-      time: d.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })
+      date: d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }),
+      time: d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     };
   };
   
@@ -5164,15 +6077,15 @@ export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Stack spacing={1}>
-          <Text size="lg" weight="bold" className="uppercase tracking-widest text-slate-800">{t('kitchen.board.title', 'Kitchen Board')}</Text>
-          <Text size="xs" muted>{t('kitchen.board.subtitle', 'Live order display for kitchen operations')}</Text>
+          <Text size="lg" weight="bold" className="uppercase tracking-widest text-foreground">{t('kitchen.board.title', 'Kitchen Board')}</Text>
+          <Text size="xs" className="text-foreground/70">{t('kitchen.board.subtitle', 'Live order display for kitchen operations')}</Text>
       </Stack>
         
         <div className="flex flex-wrap gap-3">
           <div className="flex gap-2">
             <button
               onClick={() => setDateRange('today')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase border transition-all ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 dateRange === 'today' ? 'bg-primary text-primary-foreground border-primary' : 'bg-white border-border hover:border-primary/50'
               }`}
             >
@@ -5180,7 +6093,7 @@ export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
             </button>
             <button
               onClick={() => setDateRange('tomorrow')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase border transition-all ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 dateRange === 'tomorrow' ? 'bg-primary text-primary-foreground border-primary' : 'bg-white border-border hover:border-primary/50'
               }`}
             >
@@ -5188,7 +6101,7 @@ export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
             </button>
             <button
               onClick={() => setDateRange('week')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase border transition-all ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase border transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 dateRange === 'week' ? 'bg-primary text-primary-foreground border-primary' : 'bg-white border-border hover:border-primary/50'
               }`}
             >
@@ -5211,11 +6124,11 @@ export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
             const statusColor = getStatusColor(order.status);
             
             return (
-              <Card key={order.id} className="p-6 border border-border/70 bg-white hover:shadow-lg transition-all">
+              <Card key={order.id} className="p-6 border border-border bg-white shadow-token-sm hover:shadow-token-md transition-all">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <Text weight="bold" size="xl" className="text-slate-900">{order.itemName}</Text>
-                    <Text size="xs" muted className="mt-1">{dt.date} {dt.time}</Text>
+                    <Text weight="bold" size="xl" className="text-foreground">{localizeKitchenItemName(t, order.kitchenItemId || '', order.itemName)}</Text>
+                    <Text size="sm" weight="medium" className="text-foreground/70 mt-1">{dt.date} {dt.time}</Text>
                   </div>
                   <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg shrink-0 border border-primary/20">
                     x{order.quantity}
@@ -5223,44 +6136,44 @@ export const KitchenBoardView = ({ userRole }: { userRole?: string }) => {
                 </div>
                 
                 <div className="space-y-2 mb-4">
-                  <Badge variant="outline" className={`w-fit text-[10px] uppercase font-bold ${statusColor}`}>
-                    {order.status.replace('_', ' ')}
+                  <Badge variant="outline" className={`w-fit text-xs px-2 py-1 uppercase font-semibold ${statusColor}`}>
+                    {localizeMealOrderStatus(t, order.status)}
                   </Badge>
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <MapPin size={12} />
-                    <Text size="xs">{order.servingLocation}</Text>
+                  <div className="flex items-center gap-2">
+                    <MapPin size={14} className="text-foreground/60" />
+                    <Text size="sm" weight="medium" className="text-foreground/80">{order.servingLocation}</Text>
                   </div>
                   {order.reference && (
-                    <Text size="xs" weight="medium" className="text-slate-700">
+                    <Text size="sm" weight="medium" className="text-foreground">
                       {order.reference}
                     </Text>
                   )}
                   {order.notes && (
                     <div className="bg-amber-50 p-2 rounded border border-amber-100">
-                      <Text size="xs" className="text-amber-900 italic">{order.notes}</Text>
+                      <Text size="sm" className="text-amber-900 italic">{order.notes}</Text>
       </div>
                   )}
                 </div>
                 
                 {canUpdateStatus && (
-                  <div className="flex flex-col gap-2 pt-4 border-t-2 border-border/80/60">
+                  <div className="flex flex-col gap-2 pt-4 border-t-2 border-border">
                     {order.status === MealOrderStatus.PLANNED && (
-                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(order.id, MealOrderStatus.IN_PREP)}>
+                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(order.id, MealOrderStatus.IN_PREP)} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                         {t('kitchen.startPrep', 'Start Prep')}
                       </Button>
                     )}
                     {order.status === MealOrderStatus.IN_PREP && (
-                      <Button size="sm" variant="primary" onClick={() => handleStatusChange(order.id, MealOrderStatus.READY)}>
+                      <Button size="sm" variant="primary" onClick={() => handleStatusChange(order.id, MealOrderStatus.READY)} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                         {t('kitchen.markReady', 'Mark Ready')}
                       </Button>
                     )}
                     {order.status === MealOrderStatus.READY && (
-                      <Button size="sm" variant="success" onClick={() => handleStatusChange(order.id, MealOrderStatus.DELIVERED)}>
+                      <Button size="sm" variant="success" onClick={() => handleStatusChange(order.id, MealOrderStatus.DELIVERED)} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                         {t('kitchen.markDelivered', 'Mark Delivered')}
                       </Button>
                     )}
                     {(order.status === MealOrderStatus.PLANNED || order.status === MealOrderStatus.IN_PREP) && (
-                      <Button size="sm" variant="destructive" onClick={() => handleCancel(order.id)}>
+                      <Button size="sm" variant="destructive" onClick={() => handleCancel(order.id)} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                         {t('kitchen.cancel', 'Cancel')}
                       </Button>
                     )}
@@ -5288,7 +6201,7 @@ export const MealOrdersView = ({ userRole }: { userRole?: string }) => {
     orderDateTime: new Date().toISOString().slice(0, 16),
     kitchenItemId: '',
     quantity: 1,
-    servingLocation: 'Dining Room',
+    servingLocation: t('kitchen.orders.defaultLocation', 'Dining Room'),
     referenceText: '',
     notes: '',
     bookingGroupId: '',
@@ -5351,7 +6264,7 @@ export const MealOrdersView = ({ userRole }: { userRole?: string }) => {
         orderDateTime: new Date().toISOString().slice(0, 16),
         kitchenItemId: '',
         quantity: 1,
-        servingLocation: 'Dining Room',
+        servingLocation: t('kitchen.orders.defaultLocation', 'Dining Room'),
         referenceText: '',
         notes: '',
         bookingGroupId: '',
@@ -5360,7 +6273,7 @@ export const MealOrdersView = ({ userRole }: { userRole?: string }) => {
       });
       setTick(t => t + 1);
     } catch (err: any) {
-      alert(err.message);
+      alert(t('common.error', 'Error') + ': ' + (err.message || t('kitchen.orders.error', 'Failed to create order')));
     }
   };
   
@@ -5373,105 +6286,114 @@ export const MealOrdersView = ({ userRole }: { userRole?: string }) => {
       case MealOrderStatus.CANCELLED: return 'bg-rose-100 text-rose-700';
     }
   };
-  
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <Stack spacing={1}>
-          <Text size="lg" weight="bold" className="uppercase tracking-widest text-slate-800">{t('kitchen.orders.title', 'Meal Orders')}</Text>
-          <Text size="xs" muted>{t('kitchen.orders.subtitle', 'Manage meal orders for bookings and groups')}</Text>
-        </Stack>
+      <Stack spacing={1}>
+          <Text size="lg" weight="bold" className="uppercase tracking-widest text-foreground">{t('kitchen.orders.title', 'Meal Orders')}</Text>
+          <Text size="xs" className="text-foreground/70">{t('kitchen.orders.subtitle', 'Manage meal orders for bookings and groups')}</Text>
+      </Stack>
         
         {(userRole === 'ADMIN' || userRole === 'BOOKING_STAFF') && (
-          <Button variant="primary" onClick={() => setShowForm(true)}>
+          <Button variant="primary" onClick={() => setShowForm(true)} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             <Plus size={16} className="mr-2" />
             {t('kitchen.orders.create', 'Create Order')}
-          </Button>
-        )}
+                      </Button>
+                    )}
           </div>
       
       {/* Filters */}
-      <Card className="p-4 border border-border/70">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+      <FilterBar
+        primaryFilters={
+          <>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.dateFrom', 'From')}</Text>
-              <Input type="date" size="md" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36" />
+              <Input type="date" size="md" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
         </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.dateTo', 'To')}</Text>
-              <Input type="date" size="md" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36" />
-            </div>
+              <Input type="date" size="md" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
+          </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.status', 'Status')}</Text>
-              <select 
-                className="h-10 rounded-md border border-border bg-background px-4 text-sm min-w-[140px]"
+              <Select 
+                size="md"
                 value={statusFilter.length > 0 ? statusFilter[0] : ''}
                 onChange={e => setStatusFilter(e.target.value ? [e.target.value as MealOrderStatus] : [])}
+                className="w-[160px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <option value="">{t('common.all', 'All')}</option>
+                <option value="">{t('common.all', 'ALL')}</option>
                 {Object.values(MealOrderStatus).map(s => (
-                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                  <option key={s} value={s}>{localizeMealOrderStatus(t, s)}</option>
                 ))}
-             </select>
+             </Select>
           </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.search', 'Search')}</Text>
+          </>
+        }
+        search={
+          <div className="relative w-full">
+            <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
             <Input 
               size="md"
               placeholder={t('kitchen.orders.searchPlaceholder', 'Reference, notes')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-64"
+              className="pl-10 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
-          </div>
-        </div>
-      </Card>
+            </div>
+        }
+        onClear={(statusFilter.length > 0 || searchQuery || dateFrom || dateTo) ? () => {
+          setStatusFilter([]);
+          setSearchQuery('');
+          setDateFrom(new Date().toISOString().split('T')[0]);
+          setDateTo(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        } : undefined}
+      />
       
       {/* Orders Table */}
-      <Card className="overflow-hidden border border-border/70">
+      <Card className="overflow-hidden border border-border bg-white shadow-token-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-muted border-b-2 border-border/80/70">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-muted/30 border-b-2 border-border">
               <tr>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest">{t('kitchen.orders.dateTime', 'Date/Time')}</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest">{t('kitchen.orders.item', 'Item')}</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest">{t('kitchen.orders.quantity', 'Qty')}</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest">{t('kitchen.orders.location', 'Location')}</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest">{t('kitchen.orders.reference', 'Reference')}</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-widest">{t('common.status', 'Status')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('kitchen.orders.dateTime', 'Date/Time')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('kitchen.orders.item', 'Item')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('kitchen.orders.quantity', 'Qty')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('kitchen.orders.location', 'Location')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('kitchen.orders.reference', 'Reference')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('common.status', 'Status')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/60">
+            <tbody className="divide-y divide-border">
               {filteredOrders.map(order => {
                 const item = kitchenItems.find(i => i.id === order.kitchenItemId);
                 const dt = new Date(order.orderDateTime);
                 return (
-                  <tr key={order.id} className="hover:bg-muted/30">
-                    <td className="p-4">
-                      <Text size="sm" weight="medium">{dt.toLocaleDateString('no-NO')}</Text>
-                      <Text size="xs" muted>{dt.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })}</Text>
+                  <tr key={order.id} className="hover:bg-muted/30 transition-colors min-h-[80px]">
+                    <td className="px-4 py-5">
+                      <Text size="base" weight="medium" className="text-foreground">{dt.toLocaleDateString()}</Text>
+                      <Text size="sm" className="text-foreground/70">{dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</Text>
                     </td>
-                    <td className="p-4">
-                      <Text size="sm" weight="bold">{item?.name || 'Unknown'}</Text>
+                    <td className="px-4 py-5">
+                      <Text size="base" weight="bold" className="text-foreground">{item ? localizeKitchenItemName(t, item.id, item.name) : t('kitchen.orders.unknownItem', 'Unknown')}</Text>
                     </td>
-                    <td className="p-4">
-                      <Text size="sm">{order.quantity}</Text>
+                    <td className="px-4 py-5">
+                      <Text size="base" weight="medium" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{order.quantity}</Text>
                     </td>
-                    <td className="p-4">
-                      <Text size="sm">{order.servingLocation}</Text>
+                    <td className="px-4 py-5">
+                      <Text size="base" weight="medium" className="text-foreground">{order.servingLocation}</Text>
                     </td>
-                    <td className="p-4">
-                      <Text size="sm">{order.referenceText || order.bookingGroupId || order.reservationId || '-'}</Text>
+                    <td className="px-4 py-5">
+                      <Text size="base" weight="medium" className="text-foreground">{order.referenceText || order.bookingGroupId || order.reservationId || '-'}</Text>
                     </td>
-                    <td className="p-4">
-                      <Badge variant="outline" className={getStatusColor(order.status)}>
-                        {order.status.replace('_', ' ')}
+                    <td className="px-4 py-5">
+                      <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${getStatusColor(order.status)}`}>
+                        {localizeMealOrderStatus(t, order.status)}
                       </Badge>
-                    </td>
-                  </tr>
+                </td>
+                </tr>
                 );
               })}
             </tbody>
@@ -5501,7 +6423,7 @@ export const MealOrdersView = ({ userRole }: { userRole?: string }) => {
                   onChange={e => setForm({...form, orderDateTime: e.target.value})}
                   className="mt-1 w-full"
                 />
-              </div>
+            </div>
               
               <div className="w-full">
                 <Label htmlFor="kitchenItemId" required>
@@ -5516,11 +6438,11 @@ export const MealOrdersView = ({ userRole }: { userRole?: string }) => {
                 >
                   <option value="">{t('common.select', 'Select...')}</option>
                   {kitchenItems.map(item => (
-                    <option key={item.id} value={item.id}>{item.name} - NOK {item.unitPrice}</option>
+                    <option key={item.id} value={item.id}>{localizeKitchenItemName(t, item.id, item.name)} - {t('common.currency', 'NOK')} {item.unitPrice}</option>
                   ))}
                 </Select>
       </div>
-            </div>
+          </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="w-full">
@@ -5546,7 +6468,7 @@ export const MealOrdersView = ({ userRole }: { userRole?: string }) => {
                   size="md"
                   value={form.servingLocation}
                   onChange={e => setForm({...form, servingLocation: e.target.value})}
-                  placeholder="Dining Room"
+                  placeholder={t('kitchen.orders.defaultLocation', 'Dining Room')}
                   className="mt-1 w-full"
                 />
               </div>
@@ -5663,7 +6585,7 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
       setForm({ name: '', description: '', unitPrice: 0, vatCode: VatCode.VAT_15, isActive: true });
       setTick(t => t + 1);
     } catch (err: any) {
-      alert(err.message);
+      alert(t('common.error', 'Error') + ': ' + (err.message || t('kitchen.items.error', 'Failed to save item')));
     }
   };
   
@@ -5684,7 +6606,7 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
     setItems([...store.getKitchenItems()]);
     setTick(t => t + 1);
   };
-  
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -5699,7 +6621,7 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
             setEditingItem(null);
             setForm({ name: '', description: '', unitPrice: 0, vatCode: VatCode.VAT_15, isActive: true });
             setShowForm(true);
-          }}>
+          }} className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             <Plus size={16} className="mr-2" />
             {t('kitchen.items.add', 'Add Item')}
           </Button>
@@ -5709,39 +6631,39 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
       {/* Items Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map(item => (
-          <Card key={item.id} className="p-4 border border-border/70 flex flex-col h-full">
-            <div className="flex justify-between items-start mb-2">
+          <Card key={item.id} className="p-6 border border-border bg-white shadow-token-sm flex flex-col h-full">
+            <div className="flex justify-between items-start mb-3">
               <div className="flex-1">
-                <Text size="lg" weight="bold" className="text-slate-900">{item.name}</Text>
+                <Text size="lg" weight="bold" className="text-foreground">{localizeKitchenItemName(t, item.id, item.name)}</Text>
                 {item.description && (
-                  <Text size="xs" muted className="mt-1">{item.description}</Text>
+                  <Text size="sm" weight="medium" className="text-foreground/70 mt-2">{localizeKitchenItemDescription(t, item.id, item.description)}</Text>
                 )}
             </div>
-              <Badge variant={item.isActive ? 'success' : 'secondary'}>
+              <Badge variant={item.isActive ? 'success' : 'secondary'} className="text-xs px-2 py-1 font-semibold">
                 {item.isActive ? t('common.active', 'Active') : t('common.inactive', 'Inactive')}
               </Badge>
             </div>
             
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between">
-                <Text size="sm" muted>{t('kitchen.items.price', 'Price')}</Text>
-                <Text size="sm" weight="bold">NOK {item.unitPrice}</Text>
+            <div className="mt-4 space-y-3">
+              <div className="flex justify-between items-center">
+                <Text size="sm" weight="bold" className="text-foreground/70">{t('kitchen.items.price', 'Price')}</Text>
+                <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{t('common.currency', 'NOK')} {item.unitPrice}</Text>
               </div>
-              <div className="flex justify-between">
-                <Text size="sm" muted>{t('kitchen.items.vat', 'VAT')}</Text>
-                <Text size="sm" weight="bold">{item.vatCode}%</Text>
+              <div className="flex justify-between items-center">
+                <Text size="sm" weight="bold" className="text-foreground/70">{t('kitchen.items.vat', 'VAT Code')}</Text>
+                <Text size="base" weight="bold" className="text-foreground">{item.vatCode}%</Text>
               </div>
             </div>
             
-            {canManage && (
-              <div className="flex gap-2 mt-auto pt-4 border-t-2 border-border/80/60">
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => handleEdit(item)}>
-                  {t('common.edit', 'Edit')}
-                </Button>
+              {canManage && (
+                <div className="flex gap-2 mt-auto pt-4 border-t-2 border-border">
+                  <Button size="sm" variant="outline" className="flex-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" onClick={() => handleEdit(item)}>
+                    {t('common.edit', 'Edit')}
+                  </Button>
                 <Button 
                   size="sm" 
                   variant={item.isActive ? 'warning' : 'success'}
-                  className="flex-1"
+                  className="flex-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   onClick={() => handleToggleActive(item)}
                 >
                   {item.isActive ? t('common.deactivate', 'Deactivate') : t('common.activate', 'Activate')}
@@ -5751,7 +6673,7 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
           </Card>
         ))}
       </div>
-      
+
       {/* Create/Edit Modal */}
       {showForm && (
         <Modal 
@@ -5778,7 +6700,7 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
                   onChange={e => setForm({...form, name: e.target.value})}
                   placeholder={t('kitchen.items.namePlaceholder', 'Item name')}
                 />
-              </div>
+            </div>
               <div className="space-y-1 w-full">
                 <Label htmlFor="itemDescription">
                   {t('kitchen.items.description', 'Description')}
@@ -5798,7 +6720,7 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1 w-full">
                 <Label htmlFor="itemPrice" required>
-                  {t('kitchen.items.price', 'Price')} (NOK)
+                  {t('kitchen.items.price', 'Price')} ({t('common.currency', 'NOK')})
                 </Label>
                 <Input 
                   id="itemPrice"
@@ -5810,7 +6732,7 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
                   value={form.unitPrice}
                   onChange={e => setForm({...form, unitPrice: parseFloat(e.target.value) || 0})}
                 />
-              </div>
+            </div>
               <div className="space-y-1 w-full">
                 <Label htmlFor="itemVat" required>
                   {t('kitchen.items.vat', 'VAT Code')}
@@ -5825,7 +6747,7 @@ export const KitchenItemsView = ({ userRole }: { userRole?: string }) => {
                   <option value={VatCode.VAT_15}>15%</option>
                   <option value={VatCode.VAT_25}>25%</option>
                 </Select>
-              </div>
+        </div>
             </div>
             
             {/* Row 3: Active checkbox */}
@@ -5870,15 +6792,15 @@ export const KitchenView = ({ userRole }: { userRole?: string }) => {
   const canCreateOrders = currentUserRole === 'ADMIN' || currentUserRole === 'BOOKING_STAFF';
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Sub-navigation */}
-      <div className="flex gap-2 border-b-2 border-border/80/70">
+      <div className="flex gap-3 border-b-2 border-border bg-muted/30 p-1 rounded-t-lg">
         <button
           onClick={() => setSubView('board')}
-          className={`px-4 py-2 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
+          className={`px-6 py-3 text-base font-bold uppercase tracking-wider rounded-t-lg transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
             subView === 'board'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+              ? 'bg-background text-primary border-b-2 border-primary shadow-token-sm'
+              : 'text-foreground/70 hover:text-foreground hover:bg-muted/50'
           }`}
         >
           {t('kitchen.nav.board', 'Board')}
@@ -5886,10 +6808,10 @@ export const KitchenView = ({ userRole }: { userRole?: string }) => {
         {canCreateOrders && (
           <button
             onClick={() => setSubView('orders')}
-            className={`px-4 py-2 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
+            className={`px-6 py-3 text-base font-bold uppercase tracking-wider rounded-t-lg transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               subView === 'orders'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-primary border-b-2 border-primary shadow-token-sm'
+                : 'text-foreground/70 hover:text-foreground hover:bg-muted/50'
             }`}
           >
             {t('kitchen.nav.orders', 'Orders')}
@@ -5898,10 +6820,10 @@ export const KitchenView = ({ userRole }: { userRole?: string }) => {
         {canManageItems && (
           <button
             onClick={() => setSubView('items')}
-            className={`px-4 py-2 text-sm font-bold uppercase tracking-wider border-b-2 transition-all ${
+            className={`px-6 py-3 text-base font-bold uppercase tracking-wider rounded-t-lg transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               subView === 'items'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                ? 'bg-background text-primary border-b-2 border-primary shadow-token-sm'
+                : 'text-foreground/70 hover:text-foreground hover:bg-muted/50'
             }`}
           >
             {t('kitchen.nav.items', 'Items')}
@@ -5960,10 +6882,10 @@ const AuditLogList: React.FC<{
   }, [entityType, entityId, limit, tick]);
   
   if (logs.length === 0) {
-    return (
+  return (
       <div className="p-8 text-center">
         <Text size="sm" muted>{t('audit.noLogs', 'No audit logs found')}</Text>
-      </div>
+          </div>
     );
   }
   
@@ -5983,7 +6905,7 @@ const AuditLogList: React.FC<{
                 {log.actorUserId && (
                   <Text size="xs" muted>by {log.actorUserId}</Text>
                 )}
-              </div>
+        </div>
               <Text size="sm" weight="medium" className="mb-1">
                 {log.message}
               </Text>
@@ -5997,19 +6919,19 @@ const AuditLogList: React.FC<{
                       <div className="mb-2">
                         <Text size="xs" weight="bold">Before:</Text>
                         <pre className="text-xs overflow-auto">{JSON.stringify(log.before, null, 2)}</pre>
-                      </div>
+          </div>
                     )}
                     {log.after && (
                       <div>
                         <Text size="xs" weight="bold">After:</Text>
                         <pre className="text-xs overflow-auto">{JSON.stringify(log.after, null, 2)}</pre>
-                      </div>
+          </div>
                     )}
-                  </div>
+            </div>
                 </details>
               )}
             </div>
-          </div>
+      </div>
         </div>
       ))}
     </div>
@@ -6066,145 +6988,179 @@ export const AuditLogView = () => {
   
   if (loading && logs.length === 0) {
   return (
-      <div className="space-y-6">
-      <Stack spacing={1}>
-          <Text size="lg" weight="bold">{t('audit.title', 'System Audit Log')}</Text>
-          <Text size="xs" muted>{t('audit.subtitle', 'Complete audit trail of all system events and actions')}</Text>
-      </Stack>
+      <div className="space-y-6 pb-20">
+      <PageHeader
+        title={t('audit.title', 'System Audit Log')}
+        subtitle={t('audit.subtitle', 'Complete audit trail of all system events and actions')}
+      />
         <div className="flex items-center justify-center p-20">
           <div className="flex flex-col items-center gap-4">
             <Loader2 size={32} className="animate-spin text-primary" />
-            <Text size="sm" muted>{t('audit.loading', 'Loading audit logs...')}</Text>
-          </div>
-        </div>
+            <Text size="base" weight="medium" className="text-foreground/70">{t('audit.loading', 'Loading audit logs...')}</Text>
+              </div>
       </div>
-    );
+    </div>
+  );
   }
 
   return (
-    <div className="space-y-6">
-      <Stack spacing={1}>
-        <Text size="lg" weight="bold">{t('audit.title', 'System Audit Log')}</Text>
-        <Text size="xs" muted>{t('audit.subtitle', 'Complete audit trail of all system events and actions')}</Text>
-      </Stack>
+    <div className="space-y-6 pb-20">
+      <PageHeader
+        title={t('audit.title', 'System Audit Log')}
+        subtitle={t('audit.subtitle', 'Complete audit trail of all system events and actions')}
+      />
       
       {/* Filters */}
-      <Card className="p-4 border border-border/70">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div>
-            <Text size="xs" weight="bold" className="mb-2">{t('audit.entityType', 'Entity Type')}</Text>
-            <select 
-              className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm"
-              value={filters.entityType}
-              onChange={e => setFilters({...filters, entityType: e.target.value as AuditEntityType | ''})}
-            >
-              <option value="">{t('common.all', 'All')}</option>
-              {Object.values(AuditEntityType).map(et => (
-                <option key={et} value={et}>{et.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <Text size="xs" weight="bold" className="mb-2">{t('audit.action', 'Action')}</Text>
-            <select 
-              className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm"
-              value={filters.action}
-              onChange={e => setFilters({...filters, action: e.target.value as AuditAction | ''})}
-            >
-              <option value="">{t('common.all', 'All')}</option>
-              {Object.values(AuditAction).slice(0, 20).map(act => (
-                <option key={act} value={act}>{act.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <Text size="xs" weight="bold" className="mb-2">{t('audit.actor', 'Actor')}</Text>
+      <FilterBar
+        primaryFilters={
+          <>
+            {/* Entity Type Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="xs" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('audit.entityType', 'Entity')}</Text>
+              <Select 
+                size="md"
+                value={filters.entityType}
+                onChange={e => setFilters({...filters, entityType: e.target.value as AuditEntityType | ''})}
+                className="w-[150px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('audit.entityType', 'Entity Type')}
+              >
+                <option value="">{t('common.all', 'ALL')}</option>
+                {Object.values(AuditEntityType).map(et => (
+                  <option key={et} value={et}>{et.replace(/_/g, ' ')}</option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="h-6 w-px bg-border mx-1 hidden lg:block flex-shrink-0" />
+
+            {/* Action Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="xs" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('audit.action', 'Action')}</Text>
+              <Select 
+                size="md"
+                value={filters.action}
+                onChange={e => setFilters({...filters, action: e.target.value as AuditAction | ''})}
+                className="w-[150px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('audit.action', 'Action')}
+              >
+                <option value="">{t('common.all', 'ALL')}</option>
+                {Object.values(AuditAction).slice(0, 20).map(act => (
+                  <option key={act} value={act}>{act.replace(/_/g, ' ')}</option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="h-6 w-px bg-border mx-1 hidden lg:block flex-shrink-0" />
+
+            {/* Actor Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="xs" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('audit.actor', 'Actor')}</Text>
+              <Input 
+                size="md"
+                placeholder={t('audit.actorPlaceholder', 'User ID...')}
+                value={filters.actorUserId}
+                onChange={e => setFilters({...filters, actorUserId: e.target.value})}
+                className="w-[120px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('audit.actor', 'Actor')}
+              />
+            </div>
+
+            <div className="h-6 w-px bg-border mx-1 hidden lg:block flex-shrink-0" />
+
+            {/* Date From Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="xs" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.dateFrom', 'From')}</Text>
+              <Input 
+                type="date"
+                size="md"
+                value={filters.from}
+                onChange={e => setFilters({...filters, from: e.target.value})}
+                className="w-[140px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('common.dateFrom', 'From')}
+              />
+            </div>
+
+            <div className="h-6 w-px bg-border mx-1 hidden lg:block flex-shrink-0" />
+
+            {/* Date To Filter */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Text size="xs" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('common.dateTo', 'To')}</Text>
+              <Input 
+                type="date"
+                size="md"
+                value={filters.to}
+                onChange={e => setFilters({...filters, to: e.target.value})}
+                className="w-[140px] flex-shrink-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={t('common.dateTo', 'To')}
+              />
+            </div>
+          </>
+        }
+        search={
+          <div className="relative w-full">
+            <SearchIcon size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
             <Input 
-              placeholder={t('audit.actorPlaceholder', 'User ID...')}
-              value={filters.actorUserId}
-              onChange={e => setFilters({...filters, actorUserId: e.target.value})}
-            />
-          </div>
-          
-          <div>
-            <Text size="xs" weight="bold" className="mb-2">{t('common.dateFrom', 'From')}</Text>
-            <Input 
-              type="date"
-              value={filters.from}
-              onChange={e => setFilters({...filters, from: e.target.value})}
-            />
-          </div>
-          
-          <div>
-            <Text size="xs" weight="bold" className="mb-2">{t('common.dateTo', 'To')}</Text>
-            <Input 
-              type="date"
-              value={filters.to}
-              onChange={e => setFilters({...filters, to: e.target.value})}
-            />
-          </div>
-          
-          <div>
-            <Text size="xs" weight="bold" className="mb-2">{t('common.search', 'Search')}</Text>
-            <Input 
+              size="md"
               placeholder={t('audit.searchPlaceholder', 'Message, ID...')}
               value={filters.q}
               onChange={e => setFilters({...filters, q: e.target.value})}
+              className="pl-10 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
-        </div>
-      </Card>
+        }
+        onClear={(filters.entityType || filters.action || filters.actorUserId || filters.from || filters.to || filters.q) ? () => {
+          setFilters({ entityType: '', action: '', actorUserId: '', from: '', to: '', q: '' });
+        } : undefined}
+      />
       
       {/* Logs Table */}
-      <Card className="overflow-hidden border border-border/70">
+      <Card className="overflow-hidden border border-border bg-white shadow-token-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-muted border-b-2 border-border/80">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-muted/30 border-b-2 border-border">
               <tr>
-                <th className="p-4 text-xs font-bold uppercase">{t('audit.timestamp', 'Timestamp')}</th>
-                <th className="p-4 text-xs font-bold uppercase">{t('audit.entity', 'Entity')}</th>
-                <th className="p-4 text-xs font-bold uppercase">{t('audit.action', 'Action')}</th>
-                <th className="p-4 text-xs font-bold uppercase">{t('audit.actor', 'Actor')}</th>
-                <th className="p-4 text-xs font-bold uppercase">{t('audit.message', 'Message')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('audit.timestamp', 'Timestamp')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('audit.entity', 'Entity')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('audit.action', 'Action')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('audit.actor', 'Actor')}</th>
+                <th className="px-4 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap">{t('audit.message', 'Message')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/60">
+            <tbody className="divide-y divide-border">
               {logs.map(log => (
-                <tr key={log.id} className="hover:bg-muted/30">
-                  <td className="p-4">
-                    <Text size="xs" className="font-mono">
+                <tr key={log.id} className="hover:bg-muted/30 transition-colors min-h-[80px]">
+                  <td className="px-4 py-5">
+                    <Text size="sm" weight="medium" className="font-mono text-foreground/80">
                       {new Date(log.createdAt).toLocaleString()}
                     </Text>
                   </td>
-                  <td className="p-4">
-                    <div className="flex flex-col gap-1">
-                      <Badge variant="outline" className="text-[9px] font-bold uppercase w-fit">
+                  <td className="px-4 py-5">
+                    <div className="flex flex-col gap-2">
+                      <Badge variant="outline" className="text-xs px-2 py-1 font-semibold uppercase w-fit">
                         {log.entityType}
                       </Badge>
                       {log.entityId && (
-                        <Text size="xs" muted className="font-mono">{log.entityId}</Text>
+                        <Text size="sm" weight="medium" className="font-mono text-foreground/70">{log.entityId}</Text>
                       )}
                     </div>
                   </td>
-                  <td className="p-4">
-                    <Text size="xs" weight="medium" className="uppercase">
+                  <td className="px-4 py-5">
+                    <Text size="sm" weight="bold" className="uppercase text-foreground">
                       {log.action.replace(/_/g, ' ')}
                     </Text>
                   </td>
-                  <td className="p-4">
-                    <Text size="xs">
+                  <td className="px-4 py-5">
+                    <Text size="base" weight="bold" className="text-foreground">
                       {log.actorUserId || 'SYSTEM'}
                     </Text>
                     {log.actorRoles.length > 0 && (
-                      <Text size="xs" muted className="text-[10px]">
+                      <Text size="sm" weight="medium" className="text-foreground/70">
                         ({log.actorRoles.join(', ')})
                       </Text>
                     )}
                   </td>
-                  <td className="p-4">
-                    <Text size="sm">{log.message}</Text>
+                  <td className="px-4 py-5">
+                    <Text size="base" weight="medium" className="text-foreground">{log.message}</Text>
                   </td>
                 </tr>
               ))}
@@ -6212,7 +7168,7 @@ export const AuditLogView = () => {
           </table>
           {logs.length === 0 && (
             <div className="p-12 text-center">
-              <Text size="sm" muted>{t('audit.noLogs', 'No audit logs found')}</Text>
+              <Text size="base" weight="medium" className="text-foreground/70">{t('audit.noLogs', 'No audit logs found')}</Text>
             </div>
           )}
         </div>

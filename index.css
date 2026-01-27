@@ -149,11 +149,24 @@
   }
   
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
     font-family: var(--font-sans);
     font-feature-settings: "rlig" 1, "calt" 1;
     font-size: 16px; /* Base font size for accessibility */
     line-height: 1.5; /* Improved readability */
+  }
+  
+  /* Ensure all text elements use Inter by default */
+  * {
+    font-family: inherit;
+  }
+  
+  /* Only use monospace for IDs, codes, and technical data */
+  .font-mono,
+  code,
+  pre,
+  [class*="font-mono"] {
+    font-family: var(--font-mono);
   }
   
   /* Heading hierarchy for accessibility */
@@ -424,19 +437,19 @@
   }
   
   .select-base-sm {
-    @apply h-9 px-3 py-1.5;
+    @apply h-9 px-4 py-1.5;
     min-height: 36px;
     font-size: 16px; /* Minimum for accessibility */
   }
   
   .select-base-md {
-    @apply h-11 px-3 sm:px-4 py-2;
+    @apply h-11 px-4 sm:px-5 py-2;
     min-height: 44px;
     font-size: 16px;
   }
   
   .select-base-lg {
-    @apply h-14 px-4 sm:px-5 py-3;
+    @apply h-14 px-5 sm:px-6 py-3;
     min-height: 56px;
     font-size: 18px;
   }

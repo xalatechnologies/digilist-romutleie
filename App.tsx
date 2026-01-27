@@ -210,7 +210,7 @@ const App: React.FC = () => {
                   return (
                     <div key={group.label}>
                       <div className="px-2 py-1.5 mb-2">
-                        <Text size="xs" weight="bold" muted className="uppercase tracking-[0.15em] opacity-50 text-[10px]">
+                        <Text size="xs" weight="bold" className="uppercase tracking-[0.15em] text-muted-foreground text-[10px]">
                           {group.label}
                         </Text>
               </div>
@@ -229,7 +229,7 @@ const App: React.FC = () => {
                               className={`group w-full flex items-center gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-token-xl text-sm font-medium transition-all duration-200 touch-manipulation min-h-[52px] relative overflow-hidden ${
                                 isActive 
                                   ? 'bg-primary text-primary-foreground shadow-token-md' 
-                                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground active:bg-muted'
+                                  : 'text-foreground/80 hover:bg-muted/80 hover:text-foreground active:bg-muted'
                               }`}
                             >
                               {/* Active indicator */}
@@ -330,7 +330,7 @@ const App: React.FC = () => {
                   return (
                     <div key={group.label} className="nav-group">
                       <div className="px-2 xl:px-3 py-1.5 mb-1">
-                        <Text size="xs" weight="bold" muted className="uppercase tracking-[0.15em] opacity-50 text-[10px] xl:text-[11px]">
+                        <Text size="xs" weight="bold" className="uppercase tracking-[0.15em] text-muted-foreground text-[10px] xl:text-[11px]">
                           {group.label}
                         </Text>
             </div>
@@ -346,7 +346,7 @@ const App: React.FC = () => {
                               className={`nav-item group w-full flex items-center gap-2.5 xl:gap-3 px-3 xl:px-4 py-2.5 xl:py-3 rounded-token-xl text-xs xl:text-sm font-medium transition-all duration-200 touch-manipulation relative overflow-hidden ${
                                 isActive 
                                   ? 'bg-primary text-primary-foreground shadow-token-md' 
-                                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                                  : 'text-foreground/80 hover:bg-muted/80 hover:text-foreground'
                               }`}
                             >
                               {/* Active indicator line */}

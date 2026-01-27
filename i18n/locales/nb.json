@@ -24,8 +24,12 @@
     "admin": "Administrator",
     "optional": "Valgfritt",
     "date": "Dato",
+    "dates": "Datoer",
+    "status": "Status",
+    "customer": "Kunde",
     "noLogs": "Ingen nylige logger",
     "auditHistory": "Revisjonshistorikk",
+    "auditTrail": "REVISJONSSPOR",
     "vat": {
       "15": "15%",
       "25": "25%"
@@ -33,7 +37,25 @@
     "activate": "Aktiver",
     "deactivate": "Deaktiver",
     "active": "Aktiv",
-    "inactive": "Inaktiv"
+    "inactive": "Inaktiv",
+    "notAvailable": "N/A",
+    "today": "I dag",
+    "tomorrow": "I morgen",
+    "week": "+7 dager",
+    "select": "Velg...",
+    "create": "Opprett",
+    "dateFrom": "Fra",
+    "dateTo": "Til",
+    "to": "til",
+    "total": "Totalt",
+    "notes": "Notater",
+    "unknown": "Ukjent",
+    "summary": "Sammendrag",
+    "details": "Detaljer",
+    "actions": "Handlinger",
+    "related": "Relatert",
+    "currency": "NOK",
+    "time": "kl."
   },
   "navigation": {
     "dashboard": "Dashbord",
@@ -48,7 +70,9 @@
     "overview": "Oversikt",
     "operations": "Operasjoner",
     "financeReports": "Økonomi og rapporter",
-    "system": "System"
+    "system": "System",
+    "collapseSidebar": "Skjul sidepanel",
+    "expandSidebar": "Vis sidepanel"
   },
   "rooms": {
     "title": "Rom",
@@ -73,13 +97,19 @@
     "typeDouble": "Dobbel",
     "typeApartment": "Leilighet",
     "availableFor": "Tilgjengelig i",
+    "availableFor7Days": "Tilgjengelig i 7+ dager",
     "checkoutToday": "Utsjekk i dag",
+    "checkoutInDays": "Utsjekk om {{days}} dag(er)",
+    "departingToday": "Avreise i dag",
     "occupiedUntil": "Opptatt til",
     "arrivalToday": "Ankomst i dag",
+    "arrivalInDays": "Ankomst om {{days}} dag(er)",
     "reservedFrom": "Reservert fra",
     "nextArrival": "Neste ankomst:",
+    "nextEvent": "Neste hendelse",
     "blocked": "Blokkert:",
     "noUpcomingEvents": "Ingen kommende hendelser",
+    "outlook7Days": "UTSIKT (7 DAGER)",
     "unit": "Enhet",
     "unitControl": "Enhetskontroll",
     "unitIsClean": "Enheten er ren",
@@ -132,6 +162,13 @@
       "double": "Dobbel",
       "apartment": "Leilighet"
     },
+    "blockReason": {
+      "maintenance": "Vedlikehold",
+      "damage": "Skade",
+      "safetyIssue": "Sikkerhetsproblem",
+      "deepCleaning": "Dyp rengjøring",
+      "administrativeBlock": "Administrativ blokkering"
+    },
     "loading": "Laster rom...",
     "addRoom": "Legg til rom",
     "noRoomsMatch": "Ingen rom matcher de valgte filtrene.",
@@ -167,6 +204,15 @@
     "night": "natt",
     "guests": "gjester",
     "guest": "gjest",
+    "guests": "gjester",
+    "breakfasts": "frokoster",
+    "details": "detaljer",
+    "viewList": "Liste",
+    "viewCalendar": "Kalender",
+    "calendar": {
+      "time": "Tid",
+      "am": ""
+    },
     "incVat": "inkl. mva",
     "steps": {
       "identity": "Identitet",
@@ -184,7 +230,9 @@
       "contactName": "Kontaktnavn",
       "contactNamePlaceholder": "Fullt navn på kontaktperson...",
       "email": "E-post",
+      "emailPlaceholder": "epost@eksempel.no",
       "phone": "Telefon",
+      "phonePlaceholder": "+47 ...",
       "billingAddress": "Faktureringsadresse",
       "billingAddressPlaceholder": "Gate, postnummer, by...",
       "orgNumber": "Organisasjonsnummer",
@@ -292,15 +340,20 @@
       "link": "Betalingslenke",
       "nets": "NETS-terminal"
     },
-    "details": {
-      "title": "Reservasjonsdetaljer"
-    },
+    "detailsTitle": "Reservasjonsdetaljer",
     "actions": {
       "checkIn": "Sjekk inn",
       "checkOut": "Sjekk ut",
       "createInvoice": "Opprett faktura"
     },
     "confirmCancel": "Er du sikker på at du vil avlyse denne reservasjonen?",
+    "confirmDiscard": "Er du sikker på at du vil forkaste denne nye reservasjonen? Alle data vil gå tapt.",
+    "completeBasicInfo": "Vennligst fyll ut grunnleggende gjest- og oppholdsinformasjon.",
+    "reservationCreated": "Reservasjon ble vellykket låst og revisjonspost opprettet.",
+    "invoiceNotImplemented": "Fakturering er ikke implementert ennå",
+    "auditNote": "Kun statusendringer og viktige hendelser",
+    "newBooking": "Ny reservasjon",
+    "allStatuses": "Alle statuser",
     "noBookingsMatch": "Ingen reservasjoner matcher de valgte filtrene.",
     "from": "Fra dato",
     "to": "Til dato",
@@ -432,16 +485,92 @@
     "unpaidOnly": "Kun ubetalte",
     "subtotal": "Delsum",
     "vatTotal": "MVA (15%)",
-    "total": "Totalt"
+    "total": "Totalt",
+    "invoiceId": "Faktura #",
+    "customer": "Kunde",
+    "dueDate": "Forfallsdato",
+    "paymentStatus": "Betaling",
+    "paymentStatusValues": {
+      "paid": "Betalt",
+      "pending": "Venter",
+      "none": "Ingen",
+      "succeeded": "Vellykket",
+      "failed": "Mislyktes",
+      "cancelled": "Avbrutt"
+    },
+    "exportStatus": "Eksport",
+    "created": "Opprettet",
+    "noInvoices": "Ingen fakturaer funnet",
+    "createFromGroup": "Opprett fra gruppe",
+    "references": "Referanser",
+    "reference1": "Referanse 1",
+    "reference2": "Referanse 2",
+    "lineItems": "Linjeelementer",
+    "qty": "Ant",
+    "price": "Pris",
+    "vat": "MVA",
+    "payments": "Betalinger",
+    "noPayments": "Ingen betalinger",
+    "createPaymentLink": "Betalingslenke",
+    "netsTerminal": "NETS-terminal",
+    "vismaExport": "Visma-eksport",
+    "retry": "Prøv igjen",
+    "notExported": "Ikke eksportert",
+    "exporting": "Eksporterer...",
+    "exportToVisma": "Eksporter til Visma",
+    "sendInvoice": "Send faktura",
+    "markPaid": "Merk som betalt",
+    "voidInvoice": "Annuller faktura",
+    "confirmVoid": "Er du sikker på at du vil annullere denne fakturaen?",
+    "createdBy": "Opprettet av",
+    "createdAt": "Opprettet",
+    "updatedAt": "Oppdatert",
+    "issued": "Utstedt",
+    "due": "Forfall",
+    "step1SelectGroup": "Velg",
+    "step2Review": "Gjennomgå",
+    "availableGroups": "Tilgjengelige bookingsgrupper",
+    "noGroups": "Ingen bookingsgrupper funnet. Opprett gruppebookinger først.",
+    "bookings": "bookinger",
+    "reservations": "reservasjoner",
+    "reservationsIncluded": "Reservasjoner",
+    "mealOrders": "Måltidsbestillinger",
+    "room": "Rom",
+    "nights": "netter",
+    "andMore": "...og {{count}} til",
+    "reference1Placeholder": "f.eks. PO-12345",
+    "reference2Placeholder": "f.eks. Prosjekt-ABC",
+    "nightlyRate": "Dagspris (NOK)",
+    "roomCharges": "Romgebyrer",
+    "mealCharges": "Måltidsgebyrer",
+    "creating": "Oppretter...",
+    "createDraftInvoice": "Opprett utkastfaktura"
   },
   "reports": {
-    "title": "Operasjonell intelligens",
-    "subtitle": "Agregerte analyser og ytelsesbenchmarking",
+    "title": "Rapporter",
+    "subtitle": "Oppholds- og fakturarapporter",
     "mtdRevenue": "Månedlig inntekt",
     "avgOccupancy": "Gjennomsnittlig opphold",
     "totalRoomNights": "Totale romnetter",
     "revenueTrend": "Inntektstrend",
-    "occupancyRoomNights": "Opphold og romnetter"
+    "occupancyRoomNights": "Opphold og romnetter",
+    "monthly": "Månedlig opphold",
+    "yearly": "Årlig opphold",
+    "invoiceHistory": "Fakturahistorikk",
+    "month": "Måned",
+    "year": "År",
+    "exportCSV": "Eksporter CSV",
+    "roomsAvailable": "Tilgjengelige rom",
+    "roomNightsSold": "Romnetter solgt",
+    "guestNights": "Gjestnetter",
+    "occupancyRate": "Oppholdsrate",
+    "arrivals": "Ankomster",
+    "departures": "Avreiser",
+    "byRoomType": "Oppdeling etter romtype",
+    "roomType": "Romtype",
+    "metric": "Måling",
+    "value": "Verdi",
+    "total": "TOTALT"
   },
   "housekeeping": {
     "title": "Husstell",
@@ -528,16 +657,48 @@
     "free": "Ledig"
   },
   "maintenance": {
-    "title": "Teknisk feillogg",
+    "title": "Vedlikeholdskø",
+    "subtitle": "Administrer vedlikeholdssaker og enhetsblokkering",
     "selectUnit": "Velg enhet",
     "chooseRoom": "Velg rom...",
     "specifyIssues": "Spesifiser tekniske problemer...",
     "recordLog": "Registrer logg",
-    "priority": "PRIORITET",
+    "severity": "Alvorlighetsgrad",
+    "category": "Kategori",
+    "blockedOnly": "Kun blokkerte",
+    "searchPlaceholder": "Enhet, saks-ID...",
+    "noTickets": "Ingen saker funnet",
+    "assignTo": "Tildel til bruker-ID:",
+    "assign": "Tildel",
+    "assigned": "Tildelt",
+    "assignedTo": "Tildelt til",
+    "reportedBy": "Rapportert av",
+    "requestedAt": "Forespurt",
+    "updatedAt": "Oppdatert",
+    "resolvedAt": "Løst",
+    "description": "Beskrivelse",
+    "attachments": "Vedlegg",
+    "noAttachments": "Ingen vedlegg",
+    "blockingStatus": "Blokkeringsstatus",
+    "unitIsBlocked": "Enheten er for øyeblikket blokkert",
+    "unitNotBlocked": "Enheten er ikke blokkert",
+    "impact": "Påvirkning",
+    "futureReservations": "fremtidig(e) reservasjon(er) påvirket",
+    "noFutureReservations": "Ingen fremtidige reservasjoner påvirket",
+    "currentlyOccupied": "⚠️ Enheten er for øyeblikket opptatt",
+    "changeStatus": "Endre status",
+    "nextArrival": "Neste",
+    "reason": "Årsak",
+    "note": "Merknad",
+    "titlePlaceholder": "Kort beskrivelse av problemet",
+    "requiresBlocking": "Dette forhindrer bruk av enheten",
+    "validationError": "Vennligst fyll ut alle påkrevde felt",
+    "createTicket": "Opprett sak",
     "status": {
       "open": "Åpen",
       "triaged": "Triagert",
       "inProgress": "Pågår",
+      "waitingParts": "Venter på deler",
       "resolved": "Løst",
       "closed": "Lukket"
     },
@@ -547,24 +708,84 @@
       "high": "Høy",
       "critical": "Kritisk"
     },
-    "createTicket": "Opprett sak",
-    "searchPlaceholder": "Enhet, saks-ID..."
+    "categoryValues": {
+      "plumbing": "Rørlegger",
+      "electrical": "Elektrisk",
+      "hvac": "VVS",
+      "deepCleaning": "Dyp rengjøring",
+      "damage": "Skade",
+      "safetyIssue": "Sikkerhetsproblem",
+      "other": "Annet"
+    },
+    "tickets": {
+      "t1": {
+        "title": "Lekkende kran",
+        "description": "Lekkende kran på badet, vannskade på gulvet"
+      },
+      "t2": {
+        "title": "Elektrisk problem",
+        "description": "Lysbryter fungerer ikke ordentlig på soverommet"
+      },
+      "t3": {
+        "title": "VVS-støy",
+        "description": "Klimaanlegg lager uvanlig støy"
+      },
+      "t4": {
+        "title": "Vindusskade",
+        "description": "Vindusramme skadet, sikkerhetsbekymring"
+      }
+    }
   },
   "kitchen": {
     "title": "Kjøkkenvisningsbrett",
     "subtitle": "Sanntids kateringoppfyllelse og gjestedietsynkronisering",
     "markServed": "Merk som servert",
     "queueIdle": "Kjøkkenkøen er inaktiv. Alle bestillinger er sendt.",
+    "nav": {
+      "board": "BRETT",
+      "orders": "BESTILLINGER",
+      "items": "VARER"
+    },
+    "board": {
+      "title": "KJØKKENBRETT",
+      "subtitle": "Sanntids bestillingsvisning for kjøkkenoperasjoner",
+      "noOrders": "Ingen bestillinger i valgt periode"
+    },
+    "startPrep": "Start forberedelse",
+    "markReady": "Merk som klar",
+    "markDelivered": "Merk som levert",
+    "cancel": "Avbryt",
+    "confirmCancel": "Er du sikker på at du vil avlyse denne bestillingen?",
     "orders": {
+      "title": "Måltidsbestillinger",
+      "subtitle": "Administrer måltidsbestillinger for reservasjoner og grupper",
+      "create": "Opprett bestilling",
+      "dateTime": "Dato/Tid",
+      "item": "Vare",
+      "quantity": "Antall",
+      "location": "Sted",
+      "reference": "Referanse",
+      "notes": "Notater",
+      "linkToBooking": "Koble til reservasjon (valgfritt)",
+      "searchPlaceholder": "Referanse, notater",
+      "referencePlaceholder": "Gruppenavn, reservasjonsref...",
+      "notesPlaceholder": "Allergier, tidsinstruksjoner...",
+      "defaultLocation": "Spisesal",
+      "unknownItem": "Ukjent",
+      "noOrders": "Ingen bestillinger funnet",
       "status": {
         "planned": "Planlagt",
         "inPrep": "Under forberedelse",
         "ready": "Klar",
         "delivered": "Levert",
         "cancelled": "Avlyst"
-      }
+      },
+      "validationError": "Vennligst fyll ut alle påkrevde felt",
+      "error": "Kunne ikke behandle bestilling"
     },
     "items": {
+      "title": "Kjøkkenvarekatalog",
+      "subtitle": "Administrer menyvarer og priser",
       "name": "Navn",
       "description": "Beskrivelse",
       "price": "Pris",
@@ -574,7 +795,54 @@
       "descriptionPlaceholder": "Valgfri beskrivelse",
       "validationError": "Navn og pris er påkrevd",
       "add": "Legg til vare",
-      "edit": "Rediger vare"
+      "edit": "Rediger vare",
+      "error": "Kunne ikke lagre vare",
+      "mock": {
+        "breakfastBuffet": {
+          "name": "Frokostbuffet",
+          "description": "Kontinental frokostbuffet med varme og kalde retter"
+        },
+        "packedLunch": {
+          "name": "Pakkemat",
+          "description": "Takeaway lunsjboks"
+        },
+        "threeCourseDinner": {
+          "name": "3-retters middag",
+          "description": "Full tre-retters middagsservice"
+        },
+        "coffeeSnack": {
+          "name": "Kaffe og småmat",
+          "description": "Kaffepause med bakverk"
+        },
+        "roomServiceBreakfast": {
+          "name": "Romservice frokost",
+          "description": "Full frokost servert på rommet"
+        },
+        "businessLunch": {
+          "name": "Forretningslunsj",
+          "description": "Tre-retters forretningslunsj"
+        },
+        "vegetarianOption": {
+          "name": "Vegetaralternativ",
+          "description": "Vegetarisk måltidsalternativ"
+        },
+        "wineSelection": {
+          "name": "Vinutvalg",
+          "description": "Premium vinutvalg"
+        },
+        "minibarRefill": {
+          "name": "Minibar påfylling",
+          "description": "Standard minibar påfylling"
+        },
+        "afternoonTea": {
+          "name": "Ettermiddagste",
+          "description": "Tradisjonell ettermiddagste service"
+        },
+        "lateNightSnack": {
+          "name": "Senkveldsmat",
+          "description": "Lett mat for sene ankomster"
+        }
+      }
     }
   },
   "audit": {
@@ -584,7 +852,8 @@
     "domain": "Domene",
     "action": "Handling",
     "details": "Detaljer",
-    "entity": {
+    "entity": "Enhet",
+    "entityValues": {
       "room": "Rom",
       "booking": "Reservasjon",
       "invoice": "Faktura",

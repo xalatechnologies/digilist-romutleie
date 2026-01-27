@@ -24,8 +24,12 @@
     "admin": "Administrator",
     "optional": "Optional",
     "date": "Date",
+    "dates": "Dates",
+    "status": "Status",
+    "customer": "Customer",
     "noLogs": "No recent logs",
     "auditHistory": "Audit History",
+    "auditTrail": "AUDIT TRAIL",
     "vat": {
       "15": "15%",
       "25": "25%"
@@ -33,7 +37,25 @@
     "activate": "Activate",
     "deactivate": "Deactivate",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "notAvailable": "N/A",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "week": "+7 Days",
+    "select": "Select...",
+    "create": "Create",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "to": "to",
+    "total": "Total",
+    "notes": "Notes",
+    "unknown": "Unknown",
+    "summary": "Summary",
+    "details": "Details",
+    "actions": "Actions",
+    "related": "Related",
+    "currency": "NOK",
+    "time": "at"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -48,7 +70,9 @@
     "overview": "Overview",
     "operations": "Operations",
     "financeReports": "Finance & Reports",
-    "system": "System"
+    "system": "System",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar"
   },
   "rooms": {
     "title": "Rooms",
@@ -74,13 +98,19 @@
     "typeDouble": "Double",
     "typeApartment": "Apartment",
     "availableFor": "Available for",
+    "availableFor7Days": "Available for 7+ days",
     "checkoutToday": "Checkout today",
+    "checkoutInDays": "Checkout in {{days}} day(s)",
+    "departingToday": "Departing today",
     "occupiedUntil": "Occupied until",
     "arrivalToday": "Arrival today",
+    "arrivalInDays": "Arrival in {{days}} day(s)",
     "reservedFrom": "Reserved from",
     "nextArrival": "Next arrival:",
+    "nextEvent": "Next Event",
     "blocked": "Blocked:",
     "noUpcomingEvents": "No upcoming events",
+    "outlook7Days": "OUTLOOK (7 DAYS)",
     "unit": "Unit",
     "unitControl": "Unit Control",
     "unitIsClean": "Unit is Clean",
@@ -133,6 +163,13 @@
       "double": "Double",
       "apartment": "Apartment"
     },
+    "blockReason": {
+      "maintenance": "Maintenance",
+      "damage": "Damage",
+      "safetyIssue": "Safety issue",
+      "deepCleaning": "Deep cleaning",
+      "administrativeBlock": "Administrative block"
+    },
     "loading": "Loading rooms...",
     "addRoom": "Add Room",
     "noRoomsMatch": "No rooms match the selected filters.",
@@ -168,6 +205,15 @@
     "night": "night",
     "guests": "guests",
     "guest": "guest",
+    "guests": "guests",
+    "breakfasts": "breakfasts",
+    "details": "details",
+    "viewList": "List",
+    "viewCalendar": "Calendar",
+    "calendar": {
+      "time": "Time",
+      "am": "am"
+    },
     "incVat": "inc. VAT",
     "steps": {
       "identity": "Identity",
@@ -185,7 +231,9 @@
       "contactName": "Contact Name",
       "contactNamePlaceholder": "Full name of contact...",
       "email": "Email",
+      "emailPlaceholder": "email@example.com",
       "phone": "Phone",
+      "phonePlaceholder": "+47 ...",
       "billingAddress": "Billing Address",
       "billingAddressPlaceholder": "Street, Zip, City...",
       "orgNumber": "Organization Number",
@@ -293,15 +341,20 @@
       "link": "Payment Link",
       "nets": "NETS Terminal"
     },
-    "details": {
-      "title": "Booking Details"
-    },
+    "detailsTitle": "Booking Details",
     "actions": {
       "checkIn": "Check In",
       "checkOut": "Check Out",
       "createInvoice": "Create Invoice"
     },
     "confirmCancel": "Are you sure you want to cancel this booking?",
+    "confirmDiscard": "Are you sure you want to discard this new reservation? All data will be lost.",
+    "completeBasicInfo": "Please complete the basic Guest and Stay information.",
+    "reservationCreated": "Reservation successfully locked and audit entry created.",
+    "invoiceNotImplemented": "Invoice generation not yet implemented",
+    "auditNote": "Status changes and important events only",
+    "newBooking": "New booking",
+    "allStatuses": "All statuses",
     "noBookingsMatch": "No bookings match the selected filters.",
     "from": "From date",
     "to": "To date",
@@ -433,16 +486,92 @@
     "unpaidOnly": "Unpaid only",
     "subtotal": "Subtotal",
     "vatTotal": "VAT (15%)",
-    "total": "Total"
+    "total": "Total",
+    "invoiceId": "Invoice #",
+    "customer": "Customer",
+    "dueDate": "Due Date",
+    "paymentStatus": "Payment",
+    "paymentStatusValues": {
+      "paid": "Paid",
+      "pending": "Pending",
+      "none": "None",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "exportStatus": "Export",
+    "created": "Created",
+    "noInvoices": "No invoices found",
+    "createFromGroup": "Create from Group",
+    "references": "References",
+    "reference1": "Reference 1",
+    "reference2": "Reference 2",
+    "lineItems": "Line Items",
+    "qty": "Qty",
+    "price": "Price",
+    "vat": "VAT",
+    "payments": "Payments",
+    "noPayments": "No payments",
+    "createPaymentLink": "Payment Link",
+    "netsTerminal": "NETS Terminal",
+    "vismaExport": "Visma Export",
+    "retry": "Retry",
+    "notExported": "Not exported",
+    "exporting": "Exporting...",
+    "exportToVisma": "Export to Visma",
+    "sendInvoice": "Send Invoice",
+    "markPaid": "Mark as Paid",
+    "voidInvoice": "Void Invoice",
+    "confirmVoid": "Are you sure you want to void this invoice?",
+    "createdBy": "Created by",
+    "createdAt": "Created",
+    "updatedAt": "Updated",
+    "issued": "Issued",
+    "due": "Due",
+    "step1SelectGroup": "Select",
+    "step2Review": "Review",
+    "availableGroups": "Available Booking Groups",
+    "noGroups": "No booking groups found. Create group bookings first.",
+    "bookings": "bookings",
+    "reservations": "reservations",
+    "reservationsIncluded": "Reservations",
+    "mealOrders": "Meal Orders",
+    "room": "Room",
+    "nights": "nights",
+    "andMore": "...and {{count}} more",
+    "reference1Placeholder": "e.g. PO-12345",
+    "reference2Placeholder": "e.g. Project-ABC",
+    "nightlyRate": "Nightly Rate (NOK)",
+    "roomCharges": "Room Charges",
+    "mealCharges": "Meal Charges",
+    "creating": "Creating...",
+    "createDraftInvoice": "Create Draft Invoice"
   },
   "reports": {
-    "title": "Operational Intelligence",
-    "subtitle": "Aggregated analytics and performance benchmarking",
+    "title": "Reports",
+    "subtitle": "Occupancy and invoice reports",
     "mtdRevenue": "MTD Revenue",
     "avgOccupancy": "Avg. Occupancy",
     "totalRoomNights": "Total Room Nights",
     "revenueTrend": "Revenue Trend",
-    "occupancyRoomNights": "Occupancy & Room Nights"
+    "occupancyRoomNights": "Occupancy & Room Nights",
+    "monthly": "Monthly Occupancy",
+    "yearly": "Yearly Occupancy",
+    "invoiceHistory": "Invoice History",
+    "month": "Month",
+    "year": "Year",
+    "exportCSV": "Export CSV",
+    "roomsAvailable": "Rooms Available",
+    "roomNightsSold": "Room Nights Sold",
+    "guestNights": "Guest Nights",
+    "occupancyRate": "Occupancy Rate",
+    "arrivals": "Arrivals",
+    "departures": "Departures",
+    "byRoomType": "Breakdown by Room Type",
+    "roomType": "Room Type",
+    "metric": "Metric",
+    "value": "Value",
+    "total": "TOTAL"
   },
   "housekeeping": {
     "title": "Housekeeping",
@@ -529,16 +658,48 @@
     "free": "Free"
   },
   "maintenance": {
-    "title": "Technical Fault Log",
+    "title": "Maintenance Queue",
+    "subtitle": "Manage maintenance tickets and unit blocking",
     "selectUnit": "Select Unit",
     "chooseRoom": "Choose room...",
     "specifyIssues": "Specify technical issues...",
     "recordLog": "Record Log",
-    "priority": "PRIORITY",
+    "severity": "Severity",
+    "category": "Category",
+    "blockedOnly": "Blocked only",
+    "searchPlaceholder": "Unit, ticket ID...",
+    "noTickets": "No tickets found",
+    "assignTo": "Assign to user ID:",
+    "assign": "Assign",
+    "assigned": "Assigned",
+    "assignedTo": "Assigned to",
+    "reportedBy": "Reported by",
+    "requestedAt": "Requested",
+    "updatedAt": "Updated",
+    "resolvedAt": "Resolved",
+    "description": "Description",
+    "attachments": "Attachments",
+    "noAttachments": "No attachments",
+    "blockingStatus": "Blocking Status",
+    "unitIsBlocked": "Unit is currently blocked",
+    "unitNotBlocked": "Unit is not blocked",
+    "impact": "Impact",
+    "futureReservations": "future reservation(s) affected",
+    "noFutureReservations": "No future reservations affected",
+    "currentlyOccupied": "⚠️ Unit is currently occupied",
+    "changeStatus": "Change Status",
+    "nextArrival": "Next",
+    "reason": "Reason",
+    "note": "Note",
+    "titlePlaceholder": "Brief description of issue",
+    "requiresBlocking": "This prevents use of the unit",
+    "validationError": "Please fill all required fields",
+    "createTicket": "Create Ticket",
     "status": {
       "open": "Open",
       "triaged": "Triaged",
       "inProgress": "In Progress",
+      "waitingParts": "Waiting Parts",
       "resolved": "Resolved",
       "closed": "Closed"
     },
@@ -548,24 +709,84 @@
       "high": "High",
       "critical": "Critical"
     },
-    "createTicket": "Create Ticket",
-    "searchPlaceholder": "Unit, ticket ID..."
+    "categoryValues": {
+      "plumbing": "Plumbing",
+      "electrical": "Electrical",
+      "hvac": "HVAC",
+      "deepCleaning": "Deep Cleaning",
+      "damage": "Damage",
+      "safetyIssue": "Safety Issue",
+      "other": "Other"
+    },
+    "tickets": {
+      "t1": {
+        "title": "Leaking Faucet",
+        "description": "Leaking faucet in bathroom, water damage to floor"
+      },
+      "t2": {
+        "title": "Electrical Issue",
+        "description": "Light switch not working properly in bedroom"
+      },
+      "t3": {
+        "title": "HVAC Noise",
+        "description": "AC unit making unusual noise"
+      },
+      "t4": {
+        "title": "Window Damage",
+        "description": "Window frame damaged, safety concern"
+      }
+    }
   },
   "kitchen": {
     "title": "Kitchen Display Board",
     "subtitle": "Real-time catering fulfillment and guest dietary sync",
     "markServed": "Mark Served",
     "queueIdle": "Kitchen queue is idle. All orders dispatched.",
+    "nav": {
+      "board": "BOARD",
+      "orders": "ORDERS",
+      "items": "ITEMS"
+    },
+    "board": {
+      "title": "KITCHEN BOARD",
+      "subtitle": "Live order display for kitchen operations",
+      "noOrders": "No orders in selected range"
+    },
+    "startPrep": "Start Prep",
+    "markReady": "Mark Ready",
+    "markDelivered": "Mark Delivered",
+    "cancel": "Cancel",
+    "confirmCancel": "Are you sure you want to cancel this order?",
     "orders": {
+      "title": "Meal Orders",
+      "subtitle": "Manage meal orders for bookings and groups",
+      "create": "Create Order",
+      "dateTime": "Date/Time",
+      "item": "Item",
+      "quantity": "Qty",
+      "location": "Location",
+      "reference": "Reference",
+      "notes": "Notes",
+      "linkToBooking": "Link to Booking (Optional)",
+      "searchPlaceholder": "Reference, notes",
+      "referencePlaceholder": "Group name, booking ref...",
+      "notesPlaceholder": "Allergies, timing instructions...",
+      "defaultLocation": "Dining Room",
+      "unknownItem": "Unknown",
+      "noOrders": "No orders found",
       "status": {
         "planned": "Planned",
         "inPrep": "In Prep",
         "ready": "Ready",
         "delivered": "Delivered",
         "cancelled": "Cancelled"
-      }
+      },
+      "validationError": "Please fill all required fields",
+      "error": "Failed to process order"
     },
     "items": {
+      "title": "Kitchen Items Catalog",
+      "subtitle": "Manage menu items and pricing",
       "name": "Name",
       "description": "Description",
       "price": "Price",
@@ -575,7 +796,54 @@
       "descriptionPlaceholder": "Optional description",
       "validationError": "Name and price are required",
       "add": "Add Item",
-      "edit": "Edit Item"
+      "edit": "Edit Item",
+      "error": "Failed to save item",
+      "mock": {
+        "breakfastBuffet": {
+          "name": "Breakfast Buffet",
+          "description": "Continental breakfast buffet with hot and cold items"
+        },
+        "packedLunch": {
+          "name": "Packed Lunch",
+          "description": "Takeaway lunch box"
+        },
+        "threeCourseDinner": {
+          "name": "3-Course Dinner",
+          "description": "Full three-course dinner service"
+        },
+        "coffeeSnack": {
+          "name": "Coffee & Snack",
+          "description": "Coffee break with pastries"
+        },
+        "roomServiceBreakfast": {
+          "name": "Room Service Breakfast",
+          "description": "Full breakfast served in room"
+        },
+        "businessLunch": {
+          "name": "Business Lunch",
+          "description": "Three-course business lunch"
+        },
+        "vegetarianOption": {
+          "name": "Vegetarian Option",
+          "description": "Vegetarian meal option"
+        },
+        "wineSelection": {
+          "name": "Wine Selection",
+          "description": "Premium wine selection"
+        },
+        "minibarRefill": {
+          "name": "Minibar Refill",
+          "description": "Standard minibar refill"
+        },
+        "afternoonTea": {
+          "name": "Afternoon Tea",
+          "description": "Traditional afternoon tea service"
+        },
+        "lateNightSnack": {
+          "name": "Late Night Snack",
+          "description": "Light snack for late arrivals"
+        }
+      }
     }
   },
   "audit": {
@@ -585,7 +853,8 @@
     "domain": "Domain",
     "action": "Action",
     "details": "Details",
-    "entity": {
+    "entity": "Entity",
+    "entityValues": {
       "room": "Room",
       "booking": "Booking",
       "invoice": "Invoice",

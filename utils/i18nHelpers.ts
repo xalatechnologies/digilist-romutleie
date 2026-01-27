@@ -27,6 +27,7 @@ export const localizeRoomOccupancy = (t: TFunction, occupancy: string): string =
     'FREE': t('rooms.occupancyValues.free', 'FREE'),
     'RESERVED': t('rooms.occupancyValues.reserved', 'RESERVED'),
     'OCCUPIED': t('rooms.occupancyValues.occupied', 'OCCUPIED'),
+    'DEPARTING': t('rooms.occupancyValues.departingToday', 'DEPARTING TODAY'),
     'DEPARTING_TODAY': t('rooms.occupancyValues.departingToday', 'DEPARTING TODAY'),
   };
   return occupancyMap[occupancy] || occupancy;
@@ -128,11 +129,19 @@ export const localizeRoomType = (t: TFunction, type: string): string => {
  * Localize Payment Method
  */
 export const localizePaymentMethod = (t: TFunction, method: string): string => {
+  // Handle both enum keys and enum values
   const methodMap: Record<string, string> = {
+    // Enum keys
     'PREPAYMENT': t('bookings.payment.prepayment', 'Prepayment'),
     'INVOICE': t('bookings.payment.invoice', 'Pay by Invoice'),
     'PAYMENT_LINK': t('bookings.payment.link', 'Payment Link'),
     'NETS_TERMINAL': t('bookings.payment.nets', 'NETS Terminal'),
+    'NETS': t('bookings.payment.nets', 'NETS Terminal'),
+    // Enum values (actual string values from PaymentMethod enum)
+    'Prepayment': t('bookings.payment.prepayment', 'Prepayment'),
+    'Pay by Invoice': t('bookings.payment.invoice', 'Pay by Invoice'),
+    'Payment Link': t('bookings.payment.link', 'Payment Link'),
+    'NETS Terminal': t('bookings.payment.nets', 'NETS Terminal'),
   };
   return methodMap[method] || method;
 };
@@ -160,7 +169,7 @@ export const localizeVatCode = (t: TFunction, code: number): string => {
 };
 
 /**
- * Localize Maintenance Priority
+ * Localize Maintenance Priority/Severity (they use the same values)
  */
 export const localizeMaintenancePriority = (t: TFunction, priority: string): string => {
   const priorityMap: Record<string, string> = {
@@ -170,6 +179,30 @@ export const localizeMaintenancePriority = (t: TFunction, priority: string): str
     'CRITICAL': t('maintenance.priority.critical', 'Critical'),
   };
   return priorityMap[priority] || priority;
+};
+
+/**
+ * Localize Maintenance Severity (same as priority)
+ */
+export const localizeMaintenanceSeverity = (t: TFunction, severity: string): string => {
+  return localizeMaintenancePriority(t, severity);
+};
+
+/**
+ * Localize Maintenance Category
+ */
+export const localizeMaintenanceCategory = (t: TFunction, category: string): string => {
+  const categoryMap: Record<string, string> = {
+    'PLUMBING': t('maintenance.categoryValues.plumbing', 'Plumbing'),
+    'ELECTRICAL': t('maintenance.categoryValues.electrical', 'Electrical'),
+    'HVAC': t('maintenance.categoryValues.hvac', 'HVAC'),
+    'CLEANING_DEEP': t('maintenance.categoryValues.deepCleaning', 'Deep Cleaning'),
+    'DAMAGE': t('maintenance.categoryValues.damage', 'Damage'),
+    'SAFETY_ISSUE': t('maintenance.categoryValues.safetyIssue', 'Safety Issue'),
+    'SAFETY': t('maintenance.categoryValues.safetyIssue', 'Safety Issue'),
+    'OTHER': t('maintenance.categoryValues.other', 'Other'),
+  };
+  return categoryMap[category] || category.replace(/_/g, ' ');
 };
 
 /**
@@ -203,5 +236,90 @@ export const localizeAuditEntityType = (t: TFunction, entityType: string): strin
     'MAINTENANCE_TICKET': t('audit.entity.maintenanceTicket', 'Maintenance Ticket'),
   };
   return typeMap[entityType] || entityType.replace(/_/g, ' ');
+};
+
+/**
+ * Localize Kitchen Item Name
+ * Maps item IDs to translation keys for mock data items
+ */
+export const localizeKitchenItemName = (t: TFunction, itemId: string, fallbackName: string): string => {
+  const nameMap: Record<string, string> = {
+    'k1': t('kitchen.items.mock.breakfastBuffet.name', 'Breakfast Buffet'),
+    'k2': t('kitchen.items.mock.packedLunch.name', 'Packed Lunch'),
+    'k3': t('kitchen.items.mock.threeCourseDinner.name', '3-Course Dinner'),
+    'k4': t('kitchen.items.mock.coffeeSnack.name', 'Coffee & Snack'),
+    'k5': t('kitchen.items.mock.roomServiceBreakfast.name', 'Room Service Breakfast'),
+    'k6': t('kitchen.items.mock.businessLunch.name', 'Business Lunch'),
+    'k7': t('kitchen.items.mock.vegetarianOption.name', 'Vegetarian Option'),
+    'k8': t('kitchen.items.mock.wineSelection.name', 'Wine Selection'),
+    'k9': t('kitchen.items.mock.minibarRefill.name', 'Minibar Refill'),
+    'k10': t('kitchen.items.mock.afternoonTea.name', 'Afternoon Tea'),
+    'k11': t('kitchen.items.mock.lateNightSnack.name', 'Late Night Snack'),
+  };
+  return nameMap[itemId] || fallbackName;
+};
+
+/**
+ * Localize Kitchen Item Description
+ * Maps item IDs to translation keys for mock data descriptions
+ */
+export const localizeKitchenItemDescription = (t: TFunction, itemId: string, fallbackDescription: string): string => {
+  const descMap: Record<string, string> = {
+    'k1': t('kitchen.items.mock.breakfastBuffet.description', 'Continental breakfast buffet with hot and cold items'),
+    'k2': t('kitchen.items.mock.packedLunch.description', 'Takeaway lunch box'),
+    'k3': t('kitchen.items.mock.threeCourseDinner.description', 'Full three-course dinner service'),
+    'k4': t('kitchen.items.mock.coffeeSnack.description', 'Coffee break with pastries'),
+    'k5': t('kitchen.items.mock.roomServiceBreakfast.description', 'Full breakfast served in room'),
+    'k6': t('kitchen.items.mock.businessLunch.description', 'Three-course business lunch'),
+    'k7': t('kitchen.items.mock.vegetarianOption.description', 'Vegetarian meal option'),
+    'k8': t('kitchen.items.mock.wineSelection.description', 'Premium wine selection'),
+    'k9': t('kitchen.items.mock.minibarRefill.description', 'Standard minibar refill'),
+    'k10': t('kitchen.items.mock.afternoonTea.description', 'Traditional afternoon tea service'),
+    'k11': t('kitchen.items.mock.lateNightSnack.description', 'Light snack for late arrivals'),
+  };
+  return descMap[itemId] || fallbackDescription;
+};
+
+/**
+ * Localize Maintenance Ticket Title
+ * Maps ticket IDs to translation keys for mock data titles
+ */
+export const localizeMaintenanceTicketTitle = (t: TFunction, ticketId: string, fallbackTitle: string): string => {
+  const titleMap: Record<string, string> = {
+    't1': t('maintenance.tickets.t1.title', 'Leaking Faucet'),
+    't2': t('maintenance.tickets.t2.title', 'Electrical Issue'),
+    't3': t('maintenance.tickets.t3.title', 'HVAC Noise'),
+    't4': t('maintenance.tickets.t4.title', 'Window Damage'),
+  };
+  return titleMap[ticketId] || fallbackTitle;
+};
+
+/**
+ * Localize Maintenance Ticket Description
+ * Maps ticket IDs to translation keys for mock data descriptions
+ */
+export const localizeMaintenanceTicketDescription = (t: TFunction, ticketId: string, fallbackDescription: string): string => {
+  const descMap: Record<string, string> = {
+    't1': t('maintenance.tickets.t1.description', 'Leaking faucet in bathroom, water damage to floor'),
+    't2': t('maintenance.tickets.t2.description', 'Light switch not working properly in bedroom'),
+    't3': t('maintenance.tickets.t3.description', 'AC unit making unusual noise'),
+    't4': t('maintenance.tickets.t4.description', 'Window frame damaged, safety concern'),
+  };
+  return descMap[ticketId] || fallbackDescription;
+};
+
+/**
+ * Localize Block Reason
+ * Maps BlockReason enum values to translation keys
+ */
+export const localizeBlockReason = (t: TFunction, reason: string): string => {
+  const reasonMap: Record<string, string> = {
+    'Maintenance': t('rooms.blockReason.maintenance', 'Maintenance'),
+    'Damage': t('rooms.blockReason.damage', 'Damage'),
+    'Safety issue': t('rooms.blockReason.safetyIssue', 'Safety issue'),
+    'Deep cleaning': t('rooms.blockReason.deepCleaning', 'Deep cleaning'),
+    'Administrative block': t('rooms.blockReason.administrativeBlock', 'Administrative block'),
+  };
+  return reasonMap[reason] || reason;
 };
 

@@ -24,16 +24,14 @@ interface DashboardProps {
 const DashboardHeader: React.FC<{
   date: string;
   onDateChange: (date: string) => void;
-  onRefresh: () => void;
-  refreshing: boolean;
-}> = ({ date, onDateChange, onRefresh, refreshing }) => {
+}> = ({ date, onDateChange }) => {
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b-2 border-border">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">{t('dashboard.title', 'Dashboard')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('dashboard.subtitle', 'Operational overview for today')}</p>
+        <h1 className="text-2xl font-bold text-foreground mb-1">{t('dashboard.title', 'Dashboard')}</h1>
+        <p className="text-sm text-muted-foreground">{t('dashboard.subtitle', 'Operational overview for today')}</p>
       </div>
       <div className="flex items-center gap-3">
         <div className="relative">
@@ -44,19 +42,9 @@ const DashboardHeader: React.FC<{
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
             aria-label={t('dashboard.selectDate', 'Select date')}
-            className="pl-10 pr-3"
+            className="pl-10 pr-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
         </div>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          {t('dashboard.refresh', 'Refresh')}
-        </Button>
       </div>
     </div>
   );
@@ -67,7 +55,8 @@ const DashboardHeader: React.FC<{
 // ============================================================================
 const KpiRow: React.FC<{
   summary: DashboardSummary;
-}> = ({ summary }) => {
+  onNavigate: (view: string) => void;
+}> = ({ summary, onNavigate }) => {
   const { t } = useTranslation();
   
   // Read fresh data directly from store for real-time updates
@@ -125,21 +114,25 @@ const KpiRow: React.FC<{
       label: t('dashboard.roomsAvailable', 'Available'),
       value: cleanCount,
       sub: t('dashboard.rooms', 'Rooms'),
+      view: 'Rooms',
     },
     {
       label: t('dashboard.roomsOccupied', 'Occupied'),
       value: occupiedToday,
       sub: `${occupancyRate}%`,
+      view: 'Bookings',
     },
     {
       label: t('dashboard.housekeepingPending', 'Housekeeping'),
       value: pendingHousekeepingTasks,
       sub: t('dashboard.pending', 'Pending'),
+      view: 'Housekeeping',
     },
     {
       label: t('dashboard.alerts', 'Alerts'),
       value: alertsCount,
       sub: t('dashboard.exceptions', 'Exceptions'),
+      view: 'Maintenance',
     },
   ];
 
@@ -148,10 +141,25 @@ const KpiRow: React.FC<{
   return (
     <div className={`grid grid-cols-2 ${gridCols} gap-4`}>
       {kpis.map((kpi, idx) => (
-        <Card key={idx} className="p-4 border border-border bg-white">
-          <Text size="xs" weight="bold" muted className="uppercase tracking-widest mb-1">{kpi.label}</Text>
-          <Text size="2xl" weight="bold" className="text-slate-900 leading-none mb-1">{kpi.value}</Text>
-          <Text size="xs" muted>{kpi.sub}</Text>
+        <Card 
+          key={idx} 
+          className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between cursor-pointer hover:shadow-md hover:border-primary/50 transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          onClick={() => onNavigate(kpi.view)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onNavigate(kpi.view);
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`${kpi.label}: ${kpi.value} ${kpi.sub}. Click to navigate to ${kpi.view}`}
+        >
+          <Text size="xs" weight="bold" className="uppercase tracking-widest mb-3 text-foreground/70">{kpi.label}</Text>
+          <div className="space-y-2">
+            <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</Text>
+            <Text size="sm" weight="medium" className="text-foreground/70">{kpi.sub}</Text>
+          </div>
         </Card>
       ))}
     </div>
@@ -198,15 +206,15 @@ const ArrivalsBlock: React.FC<{
   const displayItems = arrivalItems.slice(0, maxRows);
 
   return (
-    <Card className="border border-border bg-white">
-      <div className="p-4 border-b border-border bg-muted/50 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <LogIn size={16} className="text-emerald-600" />
-          <Text size="sm" weight="bold" className="uppercase tracking-widest text-slate-700">{t('dashboard.arrivalsToday')}</Text>
+    <Card className="border border-border bg-white shadow-token-sm">
+      <div className="p-5 border-b-2 border-border bg-muted/40 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <LogIn size={18} className="text-emerald-600" />
+          <Text size="base" weight="bold" className="uppercase tracking-widest text-foreground">{t('dashboard.arrivalsToday')}</Text>
         </div>
-        <Badge variant="secondary" className="bg-white border border-border text-foreground">{arrivalsToday.length}</Badge>
+        <Badge variant="secondary" className="bg-white border-2 border-border text-foreground font-bold">{arrivalsToday.length}</Badge>
       </div>
-      <div className="divide-y divide-border/30">
+      <div className="divide-y divide-border">
         {displayItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-slate-400">
             <LogIn size={24} className="mb-2 opacity-50" />
@@ -217,25 +225,25 @@ const ArrivalsBlock: React.FC<{
             {displayItems.map(arrival => {
               const startTime = new Date(arrival.startDate);
               return (
-                <div key={arrival.reservationId} className="p-4 hover:bg-muted/30 transition-colors">
-                  <div className="grid grid-cols-4 gap-4 items-center">
+                <div key={arrival.reservationId} className="p-5 hover:bg-muted/30 transition-colors min-h-[80px] flex items-center border-b border-border/50">
+                  <div className="grid grid-cols-4 gap-6 items-center w-full">
                     <div>
-                      <Text size="xs" muted className="uppercase tracking-widest mb-1">{t('rooms.unit', 'Unit')}</Text>
-                      <Text size="sm" weight="bold" className="text-slate-800">{arrival.roomNumber}</Text>
+                      <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/60">{t('rooms.unit', 'Unit')}</Text>
+                      <Text size="base" weight="bold" className="text-foreground">{arrival.roomNumber}</Text>
                     </div>
                     <div>
-                      <Text size="xs" muted className="uppercase tracking-widest mb-1">{t('bookings.customer', 'Customer')}</Text>
-                      <Text size="sm" className="text-slate-700">{arrival.customerName || 'Guest'}</Text>
+                      <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/60">{t('bookings.customer', 'Customer')}</Text>
+                      <Text size="base" weight="medium" className="text-foreground">{arrival.customerName || 'Guest'}</Text>
                     </div>
                     <div>
-                      <Text size="xs" muted className="uppercase tracking-widest mb-1">{t('dashboard.time', 'Time')}</Text>
-                      <Text size="sm" className="font-mono text-slate-700">{startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</Text>
+                      <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/60">{t('dashboard.time', 'Time')}</Text>
+                      <Text size="base" weight="medium" className="font-mono text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</Text>
                     </div>
                     <div>
-                      <Text size="xs" muted className="uppercase tracking-widest mb-1">Status</Text>
+                      <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/60">{t('common.status', 'Status')}</Text>
                       <Badge 
                         variant={arrival.status === 'CONFIRMED' ? 'success' : 'outline'} 
-                        className="text-[9px] px-1.5 py-0"
+                        className="text-xs px-2 py-1 font-semibold"
                       >
                         {arrival.status}
                       </Badge>
@@ -246,11 +254,11 @@ const ArrivalsBlock: React.FC<{
             })}
             {showViewAll && (
               <div className="p-4 border-t border-border">
-                <Button
+        <Button 
                   variant="ghost"
                   size="sm"
                   onClick={() => onNavigate('Bookings')}
-                  className="w-full text-primary hover:text-primary/80"
+                  className="w-full text-primary hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {t('dashboard.viewAll', 'View all arrivals')} ({arrivalsToday.length - maxRows} {t('dashboard.more', 'more')})
                 </Button>
@@ -303,15 +311,15 @@ const DeparturesBlock: React.FC<{
   const displayItems = departureItems.slice(0, maxRows);
 
   return (
-    <Card className="border border-border bg-white">
-      <div className="p-4 border-b border-border bg-muted/50 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <LogOut size={16} className="text-amber-600" />
-          <Text size="sm" weight="bold" className="uppercase tracking-widest text-slate-700">{t('dashboard.departuresToday')}</Text>
-        </div>
-        <Badge variant="secondary" className="bg-white border border-border text-foreground">{departuresToday.length}</Badge>
+    <Card className="border border-border bg-white shadow-token-sm">
+      <div className="p-5 border-b-2 border-border bg-muted/40 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <LogOut size={18} className="text-rose-600" />
+          <Text size="base" weight="bold" className="uppercase tracking-widest text-foreground">{t('dashboard.departuresToday')}</Text>
+            </div>
+        <Badge variant="secondary" className="bg-white border-2 border-border text-foreground font-bold">{departuresToday.length}</Badge>
       </div>
-      <div className="divide-y divide-border/30">
+      <div className="divide-y divide-border">
         {displayItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-slate-400">
             <LogOut size={24} className="mb-2 opacity-50" />
@@ -322,23 +330,23 @@ const DeparturesBlock: React.FC<{
             {displayItems.map(departure => {
               const endTime = new Date(departure.endDate);
               return (
-                <div key={departure.reservationId} className="p-4 hover:bg-muted/30 transition-colors">
-                  <div className="grid grid-cols-4 gap-4 items-center">
+                <div key={departure.reservationId} className="p-5 hover:bg-muted/30 transition-colors min-h-[80px] flex items-center border-b border-border/50">
+                  <div className="grid grid-cols-4 gap-6 items-center w-full">
                     <div>
-                      <Text size="xs" muted className="uppercase tracking-widest mb-1">{t('rooms.unit', 'Unit')}</Text>
-                      <Text size="sm" weight="bold" className="text-slate-800">{departure.roomNumber}</Text>
+                      <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/60">{t('rooms.unit', 'Unit')}</Text>
+                      <Text size="base" weight="bold" className="text-foreground">{departure.roomNumber}</Text>
                     </div>
                     <div>
-                      <Text size="xs" muted className="uppercase tracking-widest mb-1">{t('dashboard.booking', 'Booking')}</Text>
-                      <Text size="sm" className="text-slate-700">{departure.reservationId.slice(0, 8)}</Text>
+                      <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/60">{t('dashboard.booking', 'Booking')}</Text>
+                      <Text size="base" weight="medium" className="font-mono text-foreground">{departure.reservationId.slice(0, 8)}</Text>
                     </div>
                     <div>
-                      <Text size="xs" muted className="uppercase tracking-widest mb-1">{t('dashboard.time', 'Time')}</Text>
-                      <Text size="sm" className="font-mono text-slate-700">{endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</Text>
+                      <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/60">{t('dashboard.time', 'Time')}</Text>
+                      <Text size="base" weight="medium" className="font-mono text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</Text>
                     </div>
                     <div>
-                      <Text size="xs" muted className="uppercase tracking-widest mb-1">{t('bookings.status')}</Text>
-                      <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+                      <Text size="xs" weight="bold" className="uppercase tracking-widest mb-2 text-foreground/60">{t('common.status', 'Status')}</Text>
+                      <Badge variant="outline" className="text-xs px-2 py-1 font-semibold">
                         {departure.status}
                       </Badge>
                     </div>
@@ -352,7 +360,7 @@ const DeparturesBlock: React.FC<{
                   variant="ghost"
                   size="sm"
                   onClick={() => onNavigate('Bookings')}
-                  className="w-full text-primary hover:text-primary/80"
+                  className="w-full text-primary hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {t('dashboard.viewAll', 'View all departures')} ({departuresToday.length - maxRows} {t('dashboard.more', 'more')})
                 </Button>
@@ -361,7 +369,7 @@ const DeparturesBlock: React.FC<{
           </>
         )}
       </div>
-    </Card>
+        </Card>
   );
 };
 
@@ -404,66 +412,66 @@ const TaskQueues: React.FC<{
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Housekeeping Queue */}
-      <Card className="border border-border bg-white">
-        <div className="p-4 border-b border-border flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-indigo-600" />
-            <Text size="sm" weight="bold" className="uppercase tracking-widest text-slate-700">{t('dashboard.housekeeping', 'Housekeeping')}</Text>
+      <Card className="border border-border bg-white shadow-token-sm">
+        <div className="p-5 border-b-2 border-border bg-muted/40 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Sparkles size={18} className="text-indigo-600" />
+            <Text size="base" weight="bold" className="uppercase tracking-widest text-foreground">{t('dashboard.housekeeping', 'Housekeeping')}</Text>
           </div>
-          <Badge variant="secondary" className="bg-white border border-border text-foreground">
+          <Badge variant="secondary" className="bg-white border-2 border-border text-foreground font-bold">
             {pendingHousekeepingTasks.length}
           </Badge>
         </div>
-        <div className="p-4 space-y-3">
-          <div className="flex justify-between items-center text-sm">
-            <Text size="xs" muted>{t('dashboard.pendingTasks', 'Pending tasks')}</Text>
-            <Text size="sm" weight="bold" className="text-slate-900">{pendingHousekeepingTasks.length}</Text>
+        <div className="p-6 space-y-4">
+          <div className="flex justify-between items-center py-3 border-b border-border/50">
+            <Text size="sm" weight="bold" className="text-foreground/70">{t('dashboard.pendingTasks', 'Pending tasks')}</Text>
+            <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{pendingHousekeepingTasks.length}</Text>
           </div>
-          <div className="flex justify-between items-center text-sm">
-            <Text size="xs" muted>{t('dashboard.dueToday', 'Due today')}</Text>
-            <Text size="sm" weight="bold" className="text-slate-900">{dueTodayTasks.length}</Text>
+          <div className="flex justify-between items-center py-3 border-b border-border/50">
+            <Text size="sm" weight="bold" className="text-foreground/70">{t('dashboard.dueToday', 'Due today')}</Text>
+            <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{dueTodayTasks.length}</Text>
           </div>
-          <div className="pt-3 border-t border-border">
+          <div className="pt-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onNavigate('Housekeeping')}
-              className="w-full"
+              className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {t('dashboard.goToHousekeeping', 'Go to housekeeping')}
             </Button>
           </div>
-        </div>
+           </div>
       </Card>
 
       {/* Maintenance Queue */}
-      <Card className="border border-border bg-white">
-        <div className="p-4 border-b border-border flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Wrench size={16} className="text-amber-600" />
-            <Text size="sm" weight="bold" className="uppercase tracking-widest text-slate-700">{t('dashboard.maintenance', 'Maintenance')}</Text>
-          </div>
-          <Badge variant="secondary" className="bg-white border border-border text-foreground">
+      <Card className="border border-border bg-white shadow-token-sm">
+        <div className="p-5 border-b-2 border-border bg-muted/40 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Wrench size={18} className="text-amber-600" />
+            <Text size="base" weight="bold" className="uppercase tracking-widest text-foreground">{t('dashboard.maintenance', 'Maintenance')}</Text>
+             </div>
+          <Badge variant="secondary" className="bg-white border-2 border-border text-foreground font-bold">
             {openTickets.length}
-          </Badge>
+                   </Badge>
         </div>
-        <div className="p-4 space-y-3">
-          <div className="flex justify-between items-center text-sm">
-            <Text size="xs" muted>{t('dashboard.openTickets', 'Open tickets')}</Text>
-            <Text size="sm" weight="bold" className="text-slate-900">{openTickets.length}</Text>
+        <div className="p-6 space-y-4">
+          <div className="flex justify-between items-center py-3 border-b border-border/50">
+            <Text size="sm" weight="bold" className="text-foreground/70">{t('dashboard.openTickets', 'Open tickets')}</Text>
+            <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{openTickets.length}</Text>
           </div>
-          <div className="flex justify-between items-center text-sm">
-            <Text size="xs" muted>{t('dashboard.criticalHigh', 'Critical / High')}</Text>
-            <Text size="sm" weight="bold" className={criticalTickets > 0 ? "text-amber-600" : "text-slate-900"}>
+          <div className="flex justify-between items-center py-3 border-b border-border/50">
+            <Text size="sm" weight="bold" className="text-foreground/70">{t('dashboard.criticalHigh', 'Critical / High')}</Text>
+            <Text size="base" weight="bold" className={criticalTickets > 0 ? "text-amber-600" : "text-foreground"} style={{ fontVariantNumeric: 'tabular-nums' }}>
               {criticalTickets}
             </Text>
           </div>
-          <div className="pt-3 border-t border-border">
+          <div className="pt-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onNavigate('Maintenance')}
-              className="w-full"
+              className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {t('dashboard.goToMaintenance', 'Go to maintenance')}
             </Button>
@@ -522,7 +530,7 @@ const AlertsBlock: React.FC<{
 
   if (alerts.length === 0) {
     return (
-      <Card className="bg-emerald-50/50 border-emerald-100 border-2 border-dashed p-8 flex items-center justify-center gap-3">
+      <Card className="bg-emerald-50/50 border-emerald-100 border-2 border-dashed shadow-token-sm p-8 flex items-center justify-center gap-3 min-h-[120px]">
         <CheckCircle2 size={20} className="text-emerald-500" />
         <Text size="sm" weight="medium" className="text-emerald-700">{t('dashboard.allSystemsOperational')}</Text>
       </Card>
@@ -530,7 +538,7 @@ const AlertsBlock: React.FC<{
   }
 
   return (
-    <Card className="border-l-4 border-l-rose-500 shadow-lg bg-white overflow-hidden">
+    <Card className="border-l-4 border-l-rose-500 shadow-token-md bg-white overflow-hidden">
       <div className="p-4 bg-rose-50/50 border-b border-rose-100 flex justify-between items-center">
         <div className="flex items-center gap-2 text-rose-700">
           <AlertCircle size={18} />
@@ -538,9 +546,9 @@ const AlertsBlock: React.FC<{
         </div>
         <Badge className="bg-rose-200 text-rose-800 border-none px-2">{alerts.length}</Badge>
       </div>
-      <div className="divide-y divide-border/30">
+      <div className="divide-y divide-border">
         {alerts.map((alert) => (
-          <div key={alert.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+          <div key={alert.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors min-h-[64px]">
             <div className="flex items-center gap-4">
               <Badge variant="outline" className="bg-white border-border text-[10px] uppercase font-bold w-20 justify-center">{alert.type}</Badge>
               <Text size="sm" weight="medium" className="text-slate-700">{alert.title}</Text>
@@ -549,13 +557,13 @@ const AlertsBlock: React.FC<{
               size="sm" 
               variant="ghost" 
               onClick={() => onNavigate(alert.view)}
-              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold text-xs uppercase tracking-wide"
+              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold text-xs uppercase tracking-wide focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {t('dashboard.view', 'View')}
             </Button>
-          </div>
-        ))}
-          </div>
+                 </div>
+               ))}
+             </div>
         </Card>
   );
 };
@@ -570,40 +578,40 @@ const FinanceBlock: React.FC<{
   const { t } = useTranslation();
 
   return (
-    <Card className="border border-border bg-white">
-      <div className="p-4 border-b border-border bg-muted/50 flex justify-between items-center">
+    <Card className="border border-border bg-white shadow-token-sm">
+      <div className="p-4 border-b border-border bg-muted/30 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <CreditCard size={16} className="text-slate-600" />
           <Text size="sm" weight="bold" className="uppercase tracking-widest text-slate-700">{t('dashboard.financialSnapshot', 'Financial Snapshot')}</Text>
         </div>
       </div>
-      <div className="p-4 space-y-3">
-        <div className="flex justify-between items-center text-sm">
-          <Text size="xs" muted>{t('dashboard.invoicesDraft', 'Invoices draft')}</Text>
-          <Text size="sm" weight="bold" className="text-slate-900">{billing.invoicesDraft}</Text>
+      <div className="p-5 space-y-4">
+        <div className="flex justify-between items-center py-2 border-b border-border/50">
+          <Text size="xs" weight="medium" muted>{t('dashboard.invoicesDraft', 'Invoices draft')}</Text>
+          <Text size="sm" weight="bold" className="text-slate-900" style={{ fontVariantNumeric: 'tabular-nums' }}>{billing.invoicesDraft}</Text>
         </div>
-        <div className="flex justify-between items-center text-sm">
-          <Text size="xs" muted>{t('dashboard.invoicesSent', 'Invoices sent')}</Text>
-          <Text size="sm" weight="bold" className="text-slate-900">{billing.invoicesSent}</Text>
+        <div className="flex justify-between items-center py-2 border-b border-border/50">
+          <Text size="xs" weight="medium" muted>{t('dashboard.invoicesSent', 'Invoices sent')}</Text>
+          <Text size="sm" weight="bold" className="text-slate-900" style={{ fontVariantNumeric: 'tabular-nums' }}>{billing.invoicesSent}</Text>
         </div>
-        <div className="flex justify-between items-center text-sm">
-          <Text size="xs" muted>{t('dashboard.invoicesUnpaid', 'Unpaid / overdue')}</Text>
-          <Text size="sm" weight="bold" className="text-slate-900">
+        <div className="flex justify-between items-center py-2 border-b border-border/50">
+          <Text size="xs" weight="medium" muted>{t('dashboard.invoicesUnpaid', 'Unpaid / overdue')}</Text>
+          <Text size="sm" weight="bold" className="text-slate-900" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {billing.invoicesSent - billing.invoicesPaid}
           </Text>
         </div>
-        <div className="pt-3 border-t border-border">
+        <div className="pt-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => onNavigate('Billing')}
-            className="w-full"
+            className="w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {t('dashboard.goToBilling', 'Go to billing')}
           </Button>
         </div>
-      </div>
-    </Card>
+          </div>
+        </Card>
   );
 };
 
@@ -844,18 +852,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, onNavigate }) =>
   }
 
   return (
-    <div className="max-w-[1920px] mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
+    <div className="max-w-[1920px] mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
       
       {/* 1. Page Header */}
       <DashboardHeader
         date={selectedDate}
         onDateChange={handleDateChange}
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
       />
 
       {/* 2. KPI Summary Row */}
-      <KpiRow summary={summary} />
+      <div className="space-y-6">
+        <KpiRow summary={summary} onNavigate={onNavigate} />
+      </div>
 
       {/* 3. Today's Operations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -864,14 +872,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, onNavigate }) =>
       </div>
 
       {/* 4. Tasks & Work Queues */}
-      <TaskQueues summary={summary} onNavigate={onNavigate} />
+      <div className="space-y-6">
+        <TaskQueues summary={summary} onNavigate={onNavigate} />
+      </div>
 
       {/* 5. Alerts & Exceptions */}
-      <AlertsBlock summary={summary} onNavigate={onNavigate} />
+      <div className="space-y-6">
+        <AlertsBlock summary={summary} onNavigate={onNavigate} />
+        </div>
 
       {/* 6. Financial Snapshot (Conditional) */}
       {summary.billing && (userRole === UserRole.ADMIN || userRole === UserRole.FINANCE) && (
-        <FinanceBlock billing={summary.billing} onNavigate={onNavigate} />
+        <div className="space-y-6">
+          <FinanceBlock billing={summary.billing} onNavigate={onNavigate} />
+        </div>
       )}
 
     </div>

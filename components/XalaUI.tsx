@@ -1,5 +1,6 @@
 
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Settings, 
   Users, 
@@ -317,13 +318,13 @@ export const Modal: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 'var(--z-modal)' }}>
+    <div className="fixed inset-0 flex items-center justify-center p-4 pt-20 sm:pt-24 pointer-events-none" style={{ zIndex: 'var(--z-modal)' }}>
       <div 
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in transition-token-base"
+        className="absolute top-14 sm:top-16 left-0 right-0 bottom-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in transition-token-base pointer-events-auto"
         onClick={onClose}
         style={{ zIndex: 'var(--z-modal-backdrop)' }}
       />
-      <div className="relative w-full max-w-2xl bg-background rounded-token-xl shadow-token-2xl overflow-hidden border border-border animate-in zoom-in-95 fade-in transition-token-base" style={{ zIndex: 'var(--z-modal)' }}>
+      <div className="relative w-full max-w-2xl bg-background rounded-token-xl shadow-token-2xl overflow-hidden border border-border animate-in zoom-in-95 fade-in transition-token-base pointer-events-auto" style={{ zIndex: 'var(--z-modal)' }}>
         <div className="flex items-center justify-between p-6 border-b border-border bg-muted/30">
           <Text size="lg" weight="bold">{title}</Text>
           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-token-full !flex !items-center !justify-center p-0">
@@ -349,6 +350,7 @@ export const ApplicationShell: React.FC<{
   sidebarOpen?: boolean;
   onSidebarToggle?: () => void;
 }> = ({ appName, children, user, userRole, onRoleChange, availableRoles, onLogoClick, sidebarOpen = true, onSidebarToggle }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-screen bg-background text-foreground w-full">
       <div className="flex-1 flex flex-col w-full">
@@ -359,7 +361,7 @@ export const ApplicationShell: React.FC<{
               <button
                 onClick={onSidebarToggle}
                 className="hidden lg:flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-lg hover:bg-muted/60 transition-all duration-200 text-muted-foreground hover:text-foreground touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                title={sidebarOpen ? t('navigation.collapseSidebar', 'Collapse sidebar') : t('navigation.expandSidebar', 'Expand sidebar')}
               >
                 {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
               </button>
@@ -394,7 +396,7 @@ export const ApplicationShell: React.FC<{
                       title="Select user role"
                     >
                       {availableRoles.map(role => (
-                        <option key={role} value={role} className="bg-white text-black font-sans capitalize tracking-normal text-sm font-medium">
+                        <option key={role} value={role} className="bg-white text-black capitalize tracking-normal text-sm font-medium">
                           {role.replace('_', ' ')}
                         </option>
                       ))}
@@ -407,7 +409,7 @@ export const ApplicationShell: React.FC<{
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto w-full bg-muted/20">
+        <main className="flex-1 overflow-auto w-full bg-background">
           <div className="max-w-[1920px] mx-auto p-3 sm:p-4 md:p-6 lg:p-8 xl:p-10">
             {children}
           </div>
@@ -430,9 +432,9 @@ export const PageHeader: React.FC<{
   subtitle?: string;
   actions?: React.ReactNode;
 }> = ({ title, subtitle, actions }) => (
-  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-border">
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b-2 border-border">
     <div className="space-y-1">
-      <h1 className="text-2xl font-bold text-foreground tracking-tight">{title}</h1>
+      <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">{title}</h1>
       {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
     </div>
     {actions && <div className="flex items-center gap-3">{actions}</div>}
@@ -445,14 +447,14 @@ export const FilterBar: React.FC<{
   onClear?: () => void;
   className?: string;
 }> = ({ primaryFilters, search, onClear, className = '' }) => (
-  <div className={`flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 w-full ${className}`}>
+  <div className={`flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 w-full p-4 bg-muted/20 border border-border rounded-lg shadow-token-sm ${className}`}>
     <div className="flex flex-nowrap items-center gap-3 w-full xl:w-auto overflow-x-auto">
       {primaryFilters}
       {onClear && (
         <div className="h-6 w-px bg-border mx-1 hidden sm:block flex-shrink-0" />
       )}
       {onClear && (
-        <Button variant="ghost" size="sm" onClick={onClear} className="text-muted-foreground hover:text-foreground h-9 flex-shrink-0 whitespace-nowrap">
+        <Button variant="ghost" size="sm" onClick={onClear} className="text-muted-foreground hover:text-foreground h-9 flex-shrink-0 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
           Clear
         </Button>
       )}
@@ -468,13 +470,13 @@ export const DataTable: React.FC<{
   emptyMessage?: string;
   className?: string;
 }> = ({ headers, children, isEmpty, emptyMessage, className = '' }) => (
-  <div className={`border border-border rounded-lg overflow-hidden bg-white shadow-sm ${className}`}>
+  <div className={`border border-border rounded-lg overflow-hidden bg-white shadow-token-sm ${className}`}>
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="bg-muted/40 border-b border-border">
+        <thead className="bg-muted/30 border-b-2 border-border">
           <tr>
             {headers.map((h, i) => (
-              <th key={i} className="px-4 py-3 font-semibold text-muted-foreground uppercase tracking-wider text-xs whitespace-nowrap">
+              <th key={i} className="px-4 py-4 font-bold text-muted-foreground uppercase tracking-wider text-xs whitespace-nowrap">
                 {h}
               </th>
             ))}
@@ -522,24 +524,28 @@ export const DetailDrawer: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4 pt-20 sm:pt-24">
       <div 
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in transition-all pointer-events-auto"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-3xl max-h-[90vh] bg-background rounded-lg shadow-2xl border border-border pointer-events-auto flex flex-col animate-in zoom-in-95 fade-in duration-300">
+      <div className="relative w-full max-w-3xl max-h-[calc(90vh-5rem)] bg-background rounded-lg shadow-2xl border border-border pointer-events-auto flex flex-col animate-in zoom-in-95 fade-in duration-300">
         {/* Header */}
         <div className="flex flex-col gap-4 p-6 border-b border-border bg-white/50 backdrop-blur-sm rounded-t-lg">
           <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <Text size="xl" weight="bold">{title}</Text>
-              {subtitle && <Text size="sm" muted>{subtitle}</Text>}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="space-y-1 flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Text size="xl" weight="bold" className="flex-shrink-0">{title}</Text>
+                  {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
+                </div>
+                {subtitle && <Text size="sm" muted>{subtitle}</Text>}
+              </div>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full flex-shrink-0">
               <X size={20} />
             </Button>
           </div>
-          {actions && <div className="flex items-center gap-2 pt-2">{actions}</div>}
         </div>
         
         {/* Content */}
