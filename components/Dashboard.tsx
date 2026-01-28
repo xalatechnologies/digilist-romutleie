@@ -459,13 +459,13 @@ const TaskQueues: React.FC<{
           <div className="flex justify-between items-center py-3 border-b border-border/50">
             <Text size="sm" weight="bold" className="text-foreground/70">{t('dashboard.openTickets', 'Open tickets')}</Text>
             <Text size="base" weight="bold" className="text-foreground" style={{ fontVariantNumeric: 'tabular-nums' }}>{openTickets.length}</Text>
-          </div>
+                 </div>
           <div className="flex justify-between items-center py-3 border-b border-border/50">
             <Text size="sm" weight="bold" className="text-foreground/70">{t('dashboard.criticalHigh', 'Critical / High')}</Text>
             <Text size="base" weight="bold" className={criticalTickets > 0 ? "text-amber-600" : "text-foreground"} style={{ fontVariantNumeric: 'tabular-nums' }}>
               {criticalTickets}
             </Text>
-          </div>
+             </div>
           <div className="pt-2">
             <Button
               variant="outline"
@@ -476,97 +476,12 @@ const TaskQueues: React.FC<{
               {t('dashboard.goToMaintenance', 'Go to maintenance')}
             </Button>
           </div>
-        </div>
-      </Card>
+          </div>
+        </Card>
     </div>
   );
 };
 
-// ============================================================================
-// 5. ALERTS & EXCEPTIONS
-// ============================================================================
-const AlertsBlock: React.FC<{
-  summary: DashboardSummary;
-  onNavigate: (view: string) => void;
-}> = ({ summary, onNavigate }) => {
-  const { t } = useTranslation();
-
-  const alerts = useMemo(() => {
-    const items: Array<{ type: string; title: string; view: string; id: string }> = [];
-    
-    // Failed invoice exports
-    if (summary.billing?.vismaExportsFailed && summary.billing.vismaExportsFailed > 0) {
-      items.push({
-        type: 'Finance',
-        title: `${summary.billing.vismaExportsFailed} ${t('dashboard.failedVismaExports', 'Failed Visma Export(s)')}`,
-        view: 'Billing',
-        id: 'visma-failed',
-      });
-    }
-
-    // Draft invoices (if significant)
-    if (summary.billing?.invoicesDraft && summary.billing.invoicesDraft > 5) {
-      items.push({
-        type: 'Finance',
-        title: `${summary.billing.invoicesDraft} ${t('dashboard.draftInvoices', 'Draft Invoice(s)')}`,
-        view: 'Billing',
-        id: 'invoices-draft',
-      });
-    }
-
-    // Rooms out of service with active bookings (would need additional data)
-    // This is a placeholder - would need backend to provide this
-    if (summary.rooms.outOfServiceCount > 0) {
-      items.push({
-        type: 'Maintenance',
-        title: `${summary.rooms.outOfServiceCount} ${t('dashboard.roomsBlocked', 'Room(s) blocked')}`,
-        view: 'Rooms',
-        id: 'rooms-blocked',
-      });
-    }
-
-    return items;
-  }, [summary, t]);
-
-  if (alerts.length === 0) {
-    return (
-      <Card className="bg-emerald-50/50 border-emerald-100 border-2 border-dashed shadow-token-sm p-8 flex items-center justify-center gap-3 min-h-[120px]">
-        <CheckCircle2 size={20} className="text-emerald-500" />
-        <Text size="sm" weight="medium" className="text-emerald-700">{t('dashboard.allSystemsOperational')}</Text>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="border-l-4 border-l-rose-500 shadow-token-md bg-white overflow-hidden">
-      <div className="p-4 bg-rose-50/50 border-b border-rose-100 flex justify-between items-center">
-        <div className="flex items-center gap-2 text-rose-700">
-          <AlertCircle size={18} />
-          <Text size="sm" weight="bold" className="uppercase tracking-widest">{t('dashboard.alertsExceptions', 'Alerts & Exceptions')}</Text>
-        </div>
-        <Badge className="bg-rose-200 text-rose-800 border-none px-2">{alerts.length}</Badge>
-      </div>
-      <div className="divide-y divide-border">
-        {alerts.map((alert) => (
-          <div key={alert.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors min-h-[64px]">
-            <div className="flex items-center gap-4">
-              <Badge variant="outline" className="bg-white border-border text-[10px] uppercase font-bold w-20 justify-center">{alert.type}</Badge>
-              <Text size="sm" weight="medium" className="text-slate-700">{alert.title}</Text>
-            </div>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              onClick={() => onNavigate(alert.view)}
-              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold text-xs uppercase tracking-wide focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              {t('dashboard.view', 'View')}
-            </Button>
-                 </div>
-               ))}
-             </div>
-        </Card>
-  );
-};
 
 // ============================================================================
 // 6. FINANCIAL SNAPSHOT (Conditional)
@@ -875,11 +790,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, onNavigate }) =>
       <div className="space-y-6">
         <TaskQueues summary={summary} onNavigate={onNavigate} />
       </div>
-
-      {/* 5. Alerts & Exceptions */}
-      <div className="space-y-6">
-        <AlertsBlock summary={summary} onNavigate={onNavigate} />
-        </div>
 
       {/* 6. Financial Snapshot (Conditional) */}
       {summary.billing && (userRole === UserRole.ADMIN || userRole === UserRole.FINANCE) && (
