@@ -138,30 +138,62 @@ const KpiRow: React.FC<{
 
   const gridCols = 'md:grid-cols-2 lg:grid-cols-4';
   
+  // Color schemes for first and last KPI cards
+  const getCardColors = (idx: number) => {
+    if (idx === 0) {
+      // First card - Available (Emerald)
+      return {
+        bg: 'bg-emerald-50/50',
+        border: 'border-emerald-200',
+        borderHover: 'hover:border-emerald-400',
+        label: 'text-emerald-700',
+        value: 'text-emerald-900',
+        sub: 'text-emerald-600',
+      };
+    } else if (idx === 3) {
+      // Last card - Alerts (Rose)
+      return {
+        bg: 'bg-rose-50/50',
+        border: 'border-rose-200',
+        borderHover: 'hover:border-rose-400',
+        label: 'text-rose-700',
+        value: 'text-rose-900',
+        sub: 'text-rose-600',
+      };
+    }
+    return null;
+  };
+  
   return (
     <div className={`grid grid-cols-2 ${gridCols} gap-4`}>
-      {kpis.map((kpi, idx) => (
-        <Card 
-          key={idx} 
-          className="p-6 border border-border bg-white shadow-token-sm min-h-[120px] flex flex-col justify-between cursor-pointer hover:shadow-md hover:border-primary/50 transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          onClick={() => onNavigate(kpi.view)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onNavigate(kpi.view);
-            }
-          }}
-          tabIndex={0}
-          role="button"
-          aria-label={`${kpi.label}: ${kpi.value} ${kpi.sub}. Click to navigate to ${kpi.view}`}
-        >
-          <Text size="xs" weight="bold" className="uppercase tracking-widest mb-3 text-foreground/70">{kpi.label}</Text>
-          <div className="space-y-2">
-            <Text size="3xl" weight="bold" className="text-foreground leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</Text>
-            <Text size="sm" weight="medium" className="text-foreground/70">{kpi.sub}</Text>
-          </div>
-        </Card>
-      ))}
+      {kpis.map((kpi, idx) => {
+        // Only apply colors to first (idx 0) and last (idx 3) cards
+        const colors = getCardColors(idx);
+        const hasColors = colors !== null;
+        
+        return (
+          <Card 
+            key={idx} 
+            className={`p-6 ${hasColors ? `border-l-4 ${colors.border} ${colors.bg} ${colors.borderHover}` : 'border border-border bg-white'} shadow-token-sm min-h-[120px] flex flex-col justify-between cursor-pointer hover:shadow-md hover:border-primary/50 transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
+            onClick={() => onNavigate(kpi.view)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onNavigate(kpi.view);
+              }
+            }}
+            tabIndex={0}
+            role="button"
+            aria-label={`${kpi.label}: ${kpi.value} ${kpi.sub}. Click to navigate to ${kpi.view}`}
+          >
+            <Text size="xs" weight="bold" className={`uppercase tracking-widest mb-3 ${hasColors ? colors.label : 'text-foreground/70'}`}>{kpi.label}</Text>
+            <div className="space-y-2">
+              <Text size="3xl" weight="bold" className={`${hasColors ? colors.value : 'text-foreground'} leading-none`} style={{ fontVariantNumeric: 'tabular-nums' }}>{kpi.value}</Text>
+              <Text size="sm" weight="medium" className={hasColors ? colors.sub : 'text-foreground/70'}>{kpi.sub}</Text>
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 };
