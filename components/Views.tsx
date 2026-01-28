@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/config';
 import { 
@@ -577,41 +577,41 @@ export const BookingView = ({
         <PageHeader 
           title={t('bookings.title')} 
           subtitle={t('bookings.subtitle', 'Overview and handling of all reservations')}
-          actions={
-            <div className="flex items-center gap-3">
-              {/* View Toggle Buttons */}
-              <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg border border-border">
-                <Button
-                  variant={viewMode === 'list' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <FileText size={16} className="mr-2" />
-                  {t('bookings.viewList', 'List')}
-                </Button>
-                <Button
-                  variant={viewMode === 'calendar' ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('calendar')}
-                  className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <Calendar size={16} className="mr-2" />
-                  {t('bookings.viewCalendar', 'Calendar')}
-                </Button>
-              </div>
-              {/* New Booking Button */}
-              <Button 
-                onClick={() => { 
-                    if (onNewReservationClick) onNewReservationClick();
-                    else { setShowAdd(true); setCurrentStep(0); }
-                }} 
-                variant="primary"
-                className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        actions={
+          <div className="flex items-center gap-3">
+            {/* New Booking Button */}
+          <Button 
+            onClick={() => { 
+                  if (onNewReservationClick) onNewReservationClick();
+                  else { setShowAdd(true); setCurrentStep(0); }
+            }} 
+            variant="primary"
+              className="flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <Plus size={16} />
+              {t('bookings.newBooking', 'New booking')}
+            </Button>
+            {/* View Toggle Buttons */}
+            <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg border border-border">
+              <Button
+                variant={viewMode === 'list' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <Plus size={16} />
-                {t('bookings.newBooking', 'New booking')}
+                <FileText size={16} className="mr-2" />
+                {t('bookings.viewList', 'List')}
               </Button>
+              <Button
+                variant={viewMode === 'calendar' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('calendar')}
+                className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <Calendar size={16} className="mr-2" />
+                {t('bookings.viewCalendar', 'Calendar')}
+              </Button>
+              </div>
             </div>
           }
         />
@@ -1514,15 +1514,15 @@ export const BookingView = ({
         <div className="space-y-4">
           {/* Calendar Header */}
           <div className="flex items-center justify-between p-4 bg-white border border-border rounded-lg shadow-token-sm">
-            <Button 
+                   <Button 
               variant="ghost"
               size="sm"
               onClick={() => setWeekOffset(weekOffset - 1)}
               className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <ChevronLeft size={16} />
-            </Button>
-            <Text size="lg" weight="bold" className="text-slate-900">
+                   </Button>
+            <Text size="lg" weight="bold" className="text-foreground">
               {(() => {
                 const today = new Date();
                 const currentDayOfWeek = today.getDay();
@@ -1547,7 +1547,7 @@ export const BookingView = ({
             >
               <ChevronRight size={16} />
             </Button>
-          </div>
+              </div>
 
           {/* Calendar Grid */}
           <div className="bg-white border border-border rounded-lg shadow-token-sm overflow-hidden">
@@ -1555,7 +1555,7 @@ export const BookingView = ({
             <div className="grid grid-cols-[80px_repeat(5,1fr)] border-b-2 border-border bg-muted/40 sticky top-0 z-10">
               <div className="p-2 border-r border-border bg-muted/50 flex-shrink-0">
                 <Text size="xs" weight="bold" className="uppercase tracking-widest text-foreground">{t('bookings.calendar.time', 'Time')}</Text>
-              </div>
+            </div>
                   {(() => {
                     // Get the Monday of the week based on weekOffset
                     const today = new Date();
@@ -1658,7 +1658,7 @@ export const BookingView = ({
                                     <Text size="xs" weight="bold" className="text-slate-900">{booking.customerName}</Text>
                                     <Text size="xs" className="text-slate-600">
                                       {booking.guestCount || 1} {t('bookings.guest', 'guest')}
-                                    </Text>
+                 </Text>
                                     {room && (
                                       <Text size="xs" className="text-slate-600">
                                         {localizeRoomType(t, room.type)}
@@ -1680,12 +1680,12 @@ export const BookingView = ({
                                       >
                                         {localizeBookingStatus(t, booking.status)}
                                       </Badge>
-                                    </div>
-                                  </div>
+                    </div>
+                    </div>
                                 </Card>
                               );
                             })}
-                          </div>
+                    </div>
                         );
                       });
                     })()}
@@ -1703,7 +1703,7 @@ export const BookingView = ({
         onClose={() => setSelectedBookingId(null)}
         onUpdate={() => setBookings([...store.getBookings()])}
       />
-              </div>
+                      </div>
   );
 };
 
@@ -2028,8 +2028,8 @@ const RoomDetailDrawer: React.FC<{
               <div className="p-2 bg-rose-50 border border-rose-200 rounded text-rose-800 text-sm mt-2">
                 <strong>{t('rooms.blocked', 'Blocked')}:</strong> {room.outOfServiceReason || t('rooms.noReason', 'No reason provided')}
                 {room.outOfServiceNote && <div className="text-xs mt-1 opacity-80">{room.outOfServiceNote}</div>}
-              </div>
-            )}
+                      </div>
+                    )}
           </div>
         </section>
 
@@ -2050,8 +2050,8 @@ const RoomDetailDrawer: React.FC<{
                   ) : (
                     <span className="text-muted-foreground opacity-50">{localizeRoomOccupancy(t, RoomOccupancy.FREE)}</span>
                   )}
-                      </div>
                     </div>
+            </div>
             ))}
           </div>
         </section>
@@ -2076,8 +2076,8 @@ const RoomDetailDrawer: React.FC<{
                     {t('rooms.markDirty', 'Mark Dirty')}
                   </Button>
                 )}
-                      </div>
-                    )}
+        </div>
+      )}
           </div>
         </section>
 
@@ -2156,12 +2156,12 @@ const RoomDetailDrawer: React.FC<{
             </div>
             <div>
               <Label>{t('rooms.expectedReturn', 'Expected Return')}</Label>
-              <Input 
+                <Input 
                 type="date" 
                 value={blockForm.expectedReturnAt} 
                 onChange={e => setBlockForm({...blockForm, expectedReturnAt: e.target.value})}
-              />
-            </div>
+                />
+              </div>
             <div className="flex gap-2 pt-4">
               <Button variant="ghost" className="flex-1" onClick={() => setShowBlockModal(false)}>{t('common.cancel')}</Button>
               <Button variant="destructive" className="flex-1" onClick={handleBlock}>{t('common.confirm')}</Button>
@@ -2422,24 +2422,24 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
           <div className="flex items-center gap-3">
             {/* View Toggle Buttons */}
             <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg border border-border">
-              <Button
+                <Button
                 variant={viewMode === 'list' ? 'primary' : 'ghost'}
-                size="sm"
+                  size="sm"
                 onClick={() => setViewMode('list')}
                 className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
+                >
                 <FileText size={16} className="mr-2" />
                 {t('bookings.viewList', 'List')}
-              </Button>
-              <Button
+                </Button>
+                  <Button
                 variant={viewMode === 'calendar' ? 'primary' : 'ghost'}
-                size="sm"
+                    size="sm"
                 onClick={() => setViewMode('calendar')}
                 className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
+                  >
                 <Calendar size={16} className="mr-2" />
                 {t('bookings.viewCalendar', 'Calendar')}
-              </Button>
+                  </Button>
             </div>
             {/* Add Room Button */}
             {isAdmin && (
@@ -2486,7 +2486,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                   </option>
                 ))}
               </Select>
-            </div>
+              </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
               <Text size="sm" weight="bold" muted className="uppercase tracking-widest whitespace-nowrap">{t('rooms.occupancy', 'Occupancy')}</Text>
@@ -2522,7 +2522,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                   </option>
                 ))}
               </Select>
-            </div>
+              </div>
           </>
         }
         search={
@@ -2559,7 +2559,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
         {filteredRooms.map(room => (
           <tr 
             key={room.id} 
-            className="hover:bg-muted/30 transition-colors cursor-pointer group focus-within:bg-muted/40 min-h-[64px]"
+            className="hover:bg-muted/30 transition-colors cursor-pointer group focus-within:bg-muted/40 min-h-[80px]"
             onClick={() => setSelectedRoomId(room.id)}
             tabIndex={0}
             onKeyDown={(e) => {
@@ -2569,26 +2569,26 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
               }
             }}
           >
-            <td className="px-4 py-4">
-              <Text weight="bold" size="base" className="text-slate-900">{room.number}</Text>
+            <td className="px-4 py-5">
+              <Text weight="bold" size="base" className="text-foreground">{room.number}</Text>
             </td>
-            <td className="px-4 py-4">
-              <Text size="sm" className="text-slate-700">{localizeRoomType(t, room.type)}</Text>
+            <td className="px-4 py-5">
+              <Text size="base" weight="medium" className="text-foreground">{localizeRoomType(t, room.type)}</Text>
             </td>
-            <td className="px-4 py-4">
-              <Badge variant="outline" className={`text-[10px] ${conditionColor(room.status)}`}>
+            <td className="px-4 py-5">
+              <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${conditionColor(room.status)}`}>
                 {localizeRoomCondition(t, room.status)}
               </Badge>
             </td>
-            <td className="px-4 py-4">
-              <Badge variant="outline" className={`text-[10px] ${occupancyColor(room.occupancy as RoomOccupancy)}`}>
+            <td className="px-4 py-5">
+              <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${occupancyColor(room.occupancy as RoomOccupancy)}`}>
                 {localizeRoomOccupancy(t, room.occupancy)}
               </Badge>
             </td>
-            <td className="px-4 py-4">
-              <Text size="sm" className="text-slate-700">{localizeNextEvent(room.nextEvent)}</Text>
+            <td className="px-4 py-5">
+              <Text size="base" weight="medium" className="text-foreground">{localizeNextEvent(room.nextEvent)}</Text>
             </td>
-            <td className="px-4 py-4 text-right">
+            <td className="px-4 py-5 text-right">
                 <Button
                 variant="ghost" 
                   size="sm"
@@ -2596,7 +2596,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                   e.stopPropagation();
                   setSelectedRoomId(room.id);
                 }}
-                className="text-xs flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="text-sm flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {t('common.view', 'View')}
                 <ChevronRight size={14} />
@@ -2760,7 +2760,7 @@ export const RoomsView = ({ userRole }: { userRole?: string }) => {
                                   {localizeBookingStatus(t, booking.status)}
                                 </Badge>
                               </div>
-                            </Card>
+          </Card>
                           ) : (
                             <div className="h-full flex items-center justify-center">
                               <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${occupancyColor(room.occupancy as RoomOccupancy)}`}>
@@ -2920,8 +2920,8 @@ const InvoiceDetailDrawer: React.FC<{
       case InvoiceStatus.VOID: return 'bg-rose-100 text-rose-700';
     }
   };
-  
-  return (
+                    
+                    return (
     <>
       <DetailDrawer
         isOpen={true}
@@ -2949,7 +2949,7 @@ const InvoiceDetailDrawer: React.FC<{
             <div className="flex justify-between">
               <Text size="xs" muted>{t('billing.reference1', 'Reference 1')}:</Text>
               <Text size="xs" weight="medium" className="text-right">{invoice.reference1 || '-'}</Text>
-            </div>
+                            </div>
             <div className="flex justify-between">
               <Text size="xs" muted>{t('billing.reference2', 'Reference 2')}:</Text>
               <Text size="xs" weight="medium" className="text-right">{invoice.reference2 || '-'}</Text>
@@ -3105,14 +3105,14 @@ const InvoiceDetailDrawer: React.FC<{
         <div className="pt-3 border-t-2 border-border space-y-1">
           <Text size="xs" muted>
             {t('billing.createdBy', 'Created by')}: {invoice.createdByUserId}
-          </Text>
+                              </Text>
           <Text size="xs" muted>
             {t('billing.createdAt', 'Created')}: {new Date(invoice.createdAt).toLocaleString()}
-          </Text>
+                                </Text>
           <Text size="xs" muted>
             {t('billing.updatedAt', 'Updated')}: {new Date(invoice.updatedAt).toLocaleString()}
-                </Text>
-              </div>
+                              </Text>
+                          </div>
       </DetailDrawer>
       
       {/* Payment Link Modal */}
@@ -3208,14 +3208,14 @@ const CreateInvoiceModal: React.FC<{
         <div className="flex items-center gap-2 pb-4 border-b border-border">
           <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step >= 1 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
             1
-                      </div>
+                            </div>
           <Text size="xs" muted className="mr-2">{t('billing.step1SelectGroup', 'Select')}</Text>
           <div className={`flex-1 h-px ${step >= 2 ? 'bg-primary' : 'bg-border'}`} />
           <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step >= 2 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
             2
                             </div>
           <Text size="xs" muted>{t('billing.step2Review', 'Review')}</Text>
-                            </div>
+                      </div>
         
         {/* Step 1: Select Group */}
         {step === 1 && (
@@ -3246,7 +3246,7 @@ const CreateInvoiceModal: React.FC<{
                               </Text>
                             </div>
                         <ChevronRight size={16} className="text-muted-foreground" />
-                      </div>
+                            </div>
                     </Card>
                   );
                 })}
@@ -3268,7 +3268,7 @@ const CreateInvoiceModal: React.FC<{
             <div>
               <Text size="sm" weight="bold" className="mb-2">
                 {t('billing.reservationsIncluded', 'Reservations')} ({groupBookings.length})
-                              </Text>
+                            </Text>
               <div className="space-y-1 max-h-28 overflow-y-auto border border-border rounded-lg p-2">
                 {groupBookings.map(booking => {
                   const room = store.getRooms().find(r => r.id === booking.roomId);
@@ -3279,7 +3279,7 @@ const CreateInvoiceModal: React.FC<{
                   return (
                     <Text key={booking.id} size="xs" muted>
                       {t('billing.room', 'Room')} {room?.number || booking.roomId} • {nights} {t('billing.nights', 'nights')} • {booking.startDate} {t('common.to', 'to')} {booking.endDate}
-                                </Text>
+                            </Text>
                   );
                 })}
                       </div>
@@ -3607,7 +3607,7 @@ export const BillingView = ({ userRole }: { userRole?: string }) => {
               <td className="px-4 py-5">
                 <Badge variant="outline" className={`text-xs px-2 py-1 font-semibold ${getStatusColor(invoice.status)}`}>
                   {localizeInvoiceStatus(t, invoice.status)}
-                            </Badge>
+                          </Badge>
                         </td>
               <td className="px-4 py-5 text-right">
                 <MoneyValue amount={invoice.total} currency={invoice.currency} className="font-bold text-base text-foreground" />
@@ -4255,15 +4255,45 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
   const [dueDateFilter, setDueDateFilter] = useState<'all' | 'today' | 'overdue'>('all');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [showReportForm, setShowReportForm] = useState(false);
   const [issueCategory, setIssueCategory] = useState('');
   const [issueDescription, setIssueDescription] = useState('');
   const [mayRequireBlocking, setMayRequireBlocking] = useState(false);
+  const reportFormRef = useRef<HTMLDivElement>(null);
 
   // Force re-render on store updates
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Reset report form when task selection changes
+  useEffect(() => {
+    if (!selectedTaskId) {
+      setShowReportForm(false);
+      setIssueCategory('');
+      setIssueDescription('');
+      setMayRequireBlocking(false);
+    }
+  }, [selectedTaskId]);
+
+  // Scroll to form and focus on first field when form is shown
+  useEffect(() => {
+    if (showReportForm && reportFormRef.current) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        reportFormRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        // Focus on the category select after scroll
+        setTimeout(() => {
+          const selectElement = document.getElementById('issueCategory') as HTMLSelectElement;
+          selectElement?.focus();
+        }, 300);
+      }, 100);
+    }
+  }, [showReportForm]);
 
   const today = new Date().toISOString().split('T')[0];
   const rooms = store.getRooms();
@@ -4377,7 +4407,10 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
   };
 
   const handleReportIssue = () => {
-    if (!selectedTask || !issueCategory || !issueDescription) return;
+    if (!selectedTask || !issueCategory || !issueDescription) {
+      alert(t('housekeeping.fillAllFields', 'Please fill in all required fields'));
+      return;
+    }
     try {
       // Map housekeeping category to maintenance category
       const categoryMap: Record<string, MaintenanceCategory> = {
@@ -4387,7 +4420,7 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
         'Other': MaintenanceCategory.OTHER
       };
       
-      store.addTicket({
+      const newTicket = store.addTicket({
         unitId: selectedTask.room.id,
         title: `${issueCategory} - Unit ${selectedTask.room.number}`,
         category: categoryMap[issueCategory] || MaintenanceCategory.OTHER,
@@ -4397,14 +4430,30 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
         reportedByUserId: userRole || 'Housekeeping'
       }, userRole || 'Housekeeping');
       
-      setSelectedTaskId(null);
-      setIssueCategory('');
-      setIssueDescription('');
-      setMayRequireBlocking(false);
-      setTick(t => t + 1);
-      alert(t('housekeeping.issueReported', 'Issue reported successfully'));
+      // If requires blocking and user has permission, show block modal
+      if (mayRequireBlocking && ['ADMIN', 'MAINTENANCE'].includes(userRole || '')) {
+        // Close the housekeeping modal first
+        setSelectedTaskId(null);
+        setShowReportForm(false);
+        setIssueCategory('');
+        setIssueDescription('');
+        setMayRequireBlocking(false);
+        setTick(t => t + 1);
+        
+        // Show a message that blocking should be done from maintenance view
+        alert(t('housekeeping.issueReportedBlocking', 'Issue reported successfully. Please block the unit from the Maintenance view.'));
+      } else {
+        // Reset form and close
+        setSelectedTaskId(null);
+        setShowReportForm(false);
+        setIssueCategory('');
+        setIssueDescription('');
+        setMayRequireBlocking(false);
+        setTick(t => t + 1);
+        alert(t('housekeeping.issueReported', 'Issue reported successfully'));
+      }
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to report issue');
+      alert(error instanceof Error ? error.message : t('housekeeping.reportFailed', 'Failed to report issue'));
     }
   };
 
@@ -4605,7 +4654,7 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
       {selectedTask && (
         <Modal 
           isOpen={!!selectedTask} 
-          onClose={() => { setSelectedTaskId(null); setNote(''); setIssueCategory(''); setIssueDescription(''); setMayRequireBlocking(false); }}
+          onClose={() => { setSelectedTaskId(null); setNote(''); setShowReportForm(false); setIssueCategory(''); setIssueDescription(''); setMayRequireBlocking(false); }}
           title={t('housekeeping.taskSummary', 'Task Summary')}
         >
           <div className="space-y-6 max-h-[90vh] overflow-y-auto">
@@ -4616,7 +4665,7 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
                   <Text size="xs" weight="bold" muted className="uppercase tracking-widest mb-1">{t('housekeeping.room', 'Room')}</Text>
                   <Text size="base" weight="bold">{selectedTask.room.number}</Text>
                   <Text size="sm" muted>{translateRoomType(selectedTask.room.type, t)}</Text>
-                </div>
+        </div>
                 <div>
                   <Text size="xs" weight="bold" muted className="uppercase tracking-widest mb-1">{t('housekeeping.taskType', 'Task Type')}</Text>
                   <Text size="base" weight="bold">{translateTaskType(selectedTask.cleaningTrigger, t)}</Text>
@@ -4697,21 +4746,22 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
                 )}
                 {selectedTask.room.status !== RoomStatus.OUT_OF_SERVICE && (
                   <Button
-                                variant="outline" 
+                    variant="outline" 
                     className="w-full"
                     onClick={() => {
-                      // Toggle report issue form
-                      if (!issueCategory) {
-                        // Show form
-                      } else {
-                        handleReportIssue();
+                      setShowReportForm(!showReportForm);
+                      // Reset form if closing
+                      if (showReportForm) {
+                        setIssueCategory('');
+                        setIssueDescription('');
+                        setMayRequireBlocking(false);
                       }
                     }}
                   >
                     <AlertTriangle size={16} className="mr-2" />
-                    {t('housekeeping.reportIssue', 'Report issue')}
-                              </Button>
-                            )}
+                    {showReportForm ? t('housekeeping.cancelReport', 'Cancel') : t('housekeeping.reportIssue', 'Report issue')}
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -4727,16 +4777,20 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
             </div>
 
             {/* Report Issue Form (if active) */}
-            {issueCategory !== '' && (
-              <div className="space-y-4 pb-4 border-b border-border bg-rose-50/50 p-4 rounded-lg border border-rose-200">
-                <Text size="base" weight="bold">{t('housekeeping.reportIssue', 'Report Issue')}</Text>
-                <div>
-                  <Text size="sm" weight="bold" className="mb-2">{t('housekeeping.category')} *</Text>
+            {showReportForm && (
+              <div ref={reportFormRef} className="space-y-4 pb-4 border-b border-border">
+                <Text size="base" weight="bold" className="text-foreground">{t('housekeeping.reportIssue', 'Report Issue')}</Text>
+                
+                <div className="w-full">
+                  <Label htmlFor="issueCategory" required>
+                    {t('housekeeping.category')}
+                  </Label>
                   <Select
+                    id="issueCategory"
                     size="md"
                     value={issueCategory}
                     onChange={e => setIssueCategory(e.target.value)}
-                    className="bg-white"
+                    className="mt-1 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label={t('housekeeping.category')}
                   >
                     <option value="">{t('housekeeping.selectCategory', 'Select category')}</option>
@@ -4746,47 +4800,57 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
                     <option value="Other">{t('housekeeping.categoryOther', 'Other')}</option>
                   </Select>
                 </div>
-                <div>
-                  <Text size="sm" weight="bold" className="mb-2">{t('housekeeping.description')} *</Text>
+
+                <div className="w-full">
+                  <Label htmlFor="issueDescription" required>
+                    {t('housekeeping.description')}
+                  </Label>
                   <Textarea
+                    id="issueDescription"
                     size="md"
                     value={issueDescription}
                     onChange={e => setIssueDescription(e.target.value)}
-                    className="bg-white"
+                    className="mt-1 w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     placeholder={t('housekeeping.descriptionPlaceholder', 'Describe the issue...')}
                     rows={4}
                   />
                 </div>
-                <label className="flex items-center gap-2 p-3 border border-border rounded-lg cursor-pointer hover:bg-white bg-white">
-                  <input
-                    type="checkbox"
-                    checked={mayRequireBlocking}
-                    onChange={e => setMayRequireBlocking(e.target.checked)}
-                    className="rounded"
-                  />
-                  <Text size="sm">{t('housekeeping.mayRequireBlocking', 'May require blocking room')}</Text>
-                </label>
-                <div className="flex gap-3">
-                              <Button 
-                                variant="ghost" 
-                    className="flex-1"
-                                onClick={() => {
+
+                <div className="w-full">
+                  <label className="flex items-center gap-3 p-4 border border-border rounded-lg cursor-pointer hover:bg-muted/30 transition-colors bg-background">
+                    <input
+                      type="checkbox"
+                      checked={mayRequireBlocking}
+                      onChange={e => setMayRequireBlocking(e.target.checked)}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    />
+                    <Text size="sm" weight="medium" className="text-foreground">{t('housekeeping.mayRequireBlocking', 'This issue prevents use of the unit')}</Text>
+                  </label>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button 
+                    variant="ghost" 
+                    className="flex-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onClick={() => {
+                      setShowReportForm(false);
                       setIssueCategory('');
                       setIssueDescription('');
                       setMayRequireBlocking(false);
-                                }}
-                              >
+                    }}
+                  >
                     {t('common.cancel')}
-                              </Button>
+                  </Button>
                   <Button
-                    className="flex-1 bg-rose-600 hover:bg-rose-700 text-white"
+                    variant="primary"
+                    className="flex-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     onClick={handleReportIssue}
                     disabled={!issueCategory || !issueDescription}
                   >
                     {t('housekeeping.submitReport', 'Submit report')}
                   </Button>
-                      </div>
-                          </div>
+                </div>
+              </div>
             )}
 
             {/* E. Audit / History (Collapsed by default) */}
@@ -4810,7 +4874,7 @@ export const HousekeepingView = ({ userRole }: { userRole?: string }) => {
 
             {/* Close Button */}
             <div className="flex justify-end pt-4 border-t border-border">
-              <Button variant="ghost" onClick={() => { setSelectedTaskId(null); setNote(''); setIssueCategory(''); setIssueDescription(''); setMayRequireBlocking(false); }}>
+              <Button variant="ghost" onClick={() => { setSelectedTaskId(null); setNote(''); setShowReportForm(false); setIssueCategory(''); setIssueDescription(''); setMayRequireBlocking(false); }}>
                 {t('common.close', 'Close')}
               </Button>
           </div>
@@ -5626,7 +5690,7 @@ const CreateInvoiceFromBookingModal: React.FC<{
   }, [booking, room]);
   
   if (!booking) {
-    return (
+  return (
       <Modal isOpen={true} onClose={onClose} title={t('bookings.actions.createInvoice', 'Create Invoice')}>
         <div className="p-4">
           <Text size="sm" className="text-destructive">
@@ -5635,7 +5699,7 @@ const CreateInvoiceFromBookingModal: React.FC<{
           <Button variant="ghost" className="mt-4" onClick={onClose}>
             {t('common.close', 'Close')}
           </Button>
-        </div>
+      </div>
       </Modal>
     );
   }
@@ -5761,7 +5825,7 @@ const CreateInvoiceFromBookingModal: React.FC<{
               placeholder={t('billing.reference1Placeholder', 'e.g., Project code')}
               className="mt-1"
             />
-          </div>
+            </div>
           <div>
             <Label htmlFor="ref2" required>
               {t('billing.reference2', 'Reference 2')}
@@ -5818,8 +5882,8 @@ const CreateInvoiceFromBookingModal: React.FC<{
               <Text size="base" weight="bold">{t('billing.total', 'Total')}:</Text>
               <Text size="base" weight="bold">{t('common.currency', 'NOK')} {total.toLocaleString()}</Text>
             </div>
-          </div>
-        </Card>
+            </div>
+          </Card>
         
         {/* Actions */}
         <div className="flex gap-3 pt-4 border-t border-border">
